@@ -45,7 +45,7 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-ink via-[#111c33] to-[#1e2a4a] p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-ink via-[#111c33] to-[#1e2a4a] p-4" dir="rtl" lang="ar">
       <div className="w-full max-w-[420px]">
         <div className="rounded-2xl bg-white p-6 shadow-2xl">
           <div className="flex flex-col items-center gap-1.5">

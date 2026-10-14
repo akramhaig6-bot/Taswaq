@@ -131,7 +131,7 @@ export function AdminShell() {
   }, [quickSearch, products.items, orders.items, customers.items])
 
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="min-h-dvh bg-page" dir="rtl" lang="ar">
       {/* الشريط الجانبي */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-ink/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
