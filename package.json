@@ -9,7 +9,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "flows": "node scripts/flows.mjs",
+    "test": "npm run typecheck && npm run smoke && npm run flows"
   },
   "dependencies": {
     "@fontsource-variable/cairo": "^5.3.0",

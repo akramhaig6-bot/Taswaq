@@ -25,7 +25,9 @@ npm run dev        # http://localhost:5173
 npm run build      # بناء للإنتاج إلى dist/
 npm run preview    # معاينة بناء الإنتاج على 4173
 npm run typecheck  # فحص أنواع TypeScript
-npm run smoke      # اختبار تصيير لكل المسارات (SSR + jsdom)
+npm run smoke      # اختبار تصيير لكل المسارات (React + jsdom)
+npm run flows      # اختبار تدفقات حرجة: دخول الإدارة، إضافة للسلة، الدفع
+npm test           # typecheck + smoke + flows
 ```
 
 ## النشر على Vercel
@@ -70,7 +72,8 @@ src/
     customer/             # بطاقات المنتج، السلايدر، الفلاتر، المراجعات، المعرض، مودالات العناوين...
     admin/AdminUI.tsx     # عدة لوحة الإدارة: AdminPage, Card, StatCard, DataTable, LineChart, BarChart, DonutChart
   pages/                  # customer/ و admin/
-scripts/smoke.mjs         # اختبار تصيير لكل المسارات (يستخدم src/smoke-entry.tsx)
+scripts/smoke.mjs         # يجب أن تُصيَّر كل الشاشات بدون أخطاء وقت تشغيل
+scripts/flows.mjs         # اختبار التدفقات الحرجة (تسجيل دخول، سلة، دفع)
 ```
 
 ## ملاحظات مهمة

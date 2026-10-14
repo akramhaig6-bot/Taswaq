@@ -172,34 +172,38 @@ export default function App() {
           </Route>
 
           {/* ------------------------- لوحة الإدارة ------------------------- */}
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route
-            path="/admin/*"
-            element={
-              <ProtectedAdmin>
-                <AdminShell />
-              </ProtectedAdmin>
-            }
-          >
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="orders/:id" element={<AdminOrderDetail />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="products/new" element={<AdminProductForm />} />
-            <Route path="products/:id/edit" element={<AdminProductForm />} />
-            <Route path="categories" element={<AdminCategories />} />
-            <Route path="brands" element={<AdminBrands />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="reviews" element={<AdminReviews />} />
-            <Route path="coupons" element={<AdminCoupons />} />
-            <Route path="banners" element={<AdminBanners />} />
-            <Route path="reports" element={<AdminReports />} />
-            <Route path="notifications" element={<AdminNotifications />} />
-            <Route path="settings/:section" element={<AdminSettings />} />
-            <Route path="settings" element={<Navigate to="/admin/settings/general" replace />} />
-            <Route path="profile" element={<AdminProfile />} />
-            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+          {/*
+            نُبقي تسجيل دخول الإدارة كـ index route تحت /admin
+            لتجنّب أي التباس مع مسارات /admin/* المحمية.
+          */}
+          <Route path="/admin">
+            <Route index element={<AdminLogin />} />
+            <Route
+              element={
+                <ProtectedAdmin>
+                  <AdminShell />
+                </ProtectedAdmin>
+              }
+            >
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="orders/:id" element={<AdminOrderDetail />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="products/new" element={<AdminProductForm />} />
+              <Route path="products/:id/edit" element={<AdminProductForm />} />
+              <Route path="categories" element={<AdminCategories />} />
+              <Route path="brands" element={<AdminBrands />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="coupons" element={<AdminCoupons />} />
+              <Route path="banners" element={<AdminBanners />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="settings/:section" element={<AdminSettings />} />
+              <Route path="settings" element={<Navigate to="/admin/settings/general" replace />} />
+              <Route path="profile" element={<AdminProfile />} />
+              <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+            </Route>
           </Route>
         </Routes>
         <ToastViewport />
