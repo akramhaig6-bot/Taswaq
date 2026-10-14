@@ -1,52 +1,55 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProviders, useAppData, useAuth } from '@/store'
 import { BootScreen } from '@/components/layout/BootScreen'
 import { AppShell } from '@/components/layout/AppShell'
 import { ToastViewport } from '@/components/ui/Toast'
+import { PageLoader } from '@/components/ui/display'
 
 /* ---------------------------- شاشات العميل ---------------------------- */
 import Home from '@/pages/customer/Home'
 import Search from '@/pages/customer/Search'
 import Categories, { CategoryProducts, CategoryView } from '@/pages/customer/Categories'
 import BrandProducts from '@/pages/customer/BrandProducts'
-import ProductDetail from '@/pages/customer/ProductDetail'
-import AllReviews from '@/pages/customer/AllReviews'
+import ProductDetail from '@/pages/customer/ProductDetail'  // مسار حرج — يُحمّل فورًا
 import Cart from '@/pages/customer/Cart'
-import Checkout from '@/pages/customer/Checkout'
-import OrderSuccess from '@/pages/customer/OrderSuccess'
-import Orders from '@/pages/customer/Orders'
-import OrderDetail from '@/pages/customer/OrderDetail'
-import Wishlist from '@/pages/customer/Wishlist'
-import Account from '@/pages/customer/Account'
-import EditProfile from '@/pages/customer/EditProfile'
-import Addresses from '@/pages/customer/Addresses'
-import PaymentMethods from '@/pages/customer/PaymentMethods'
-import Notifications from '@/pages/customer/Notifications'
-import Offers from '@/pages/customer/Offers'
 import Auth from '@/pages/customer/Auth'
-import ForgotPassword from '@/pages/customer/ForgotPassword'
-import StaticPageView from '@/pages/customer/StaticPageView'
-import NotFound from '@/pages/customer/NotFound'
+
+const AllReviews = lazy(() => import('@/pages/customer/AllReviews'))
+const Checkout = lazy(() => import('@/pages/customer/Checkout'))
+const OrderSuccess = lazy(() => import('@/pages/customer/OrderSuccess'))
+const Orders = lazy(() => import('@/pages/customer/Orders'))
+const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail'))
+const Wishlist = lazy(() => import('@/pages/customer/Wishlist'))
+const Account = lazy(() => import('@/pages/customer/Account'))
+const EditProfile = lazy(() => import('@/pages/customer/EditProfile'))
+const Addresses = lazy(() => import('@/pages/customer/Addresses'))
+const PaymentMethods = lazy(() => import('@/pages/customer/PaymentMethods'))
+const Notifications = lazy(() => import('@/pages/customer/Notifications'))
+const Offers = lazy(() => import('@/pages/customer/Offers'))
+const ForgotPassword = lazy(() => import('@/pages/customer/ForgotPassword'))
+const StaticPageView = lazy(() => import('@/pages/customer/StaticPageView'))
+const NotFound = lazy(() => import('@/pages/customer/NotFound'))
 
 /* ---------------------------- لوحة الإدارة ---------------------------- */
-import AdminLogin from '@/pages/admin/AdminLogin'
-import { AdminShell } from '@/pages/admin/AdminShell'
-import Dashboard from '@/pages/admin/Dashboard'
-import AdminOrders from '@/pages/admin/AdminOrders'
-import AdminOrderDetail from '@/pages/admin/AdminOrderDetail'
-import AdminProducts from '@/pages/admin/AdminProducts'
-import AdminProductForm from '@/pages/admin/AdminProductForm'
-import AdminCategories from '@/pages/admin/AdminCategories'
-import AdminBrands from '@/pages/admin/AdminBrands'
-import AdminCustomers from '@/pages/admin/AdminCustomers'
-import AdminReviews from '@/pages/admin/AdminReviews'
-import AdminCoupons from '@/pages/admin/AdminCoupons'
-import AdminBanners from '@/pages/admin/AdminBanners'
-import AdminReports from '@/pages/admin/AdminReports'
-import AdminNotifications from '@/pages/admin/AdminNotifications'
-import AdminSettings from '@/pages/admin/AdminSettings'
-import AdminProfile from '@/pages/admin/AdminProfile'
+/* كل شاشات لوحة الإدارة تُحمّل عند الطلب (Code Splitting) — لا تؤثر على سرعة المتجر */
+const AdminLogin = lazy(() => import('@/pages/admin/AdminLogin'))
+const AdminShell = lazy(() => import('@/pages/admin/AdminShell').then((module) => ({ default: module.AdminShell })))
+const Dashboard = lazy(() => import('@/pages/admin/Dashboard'))
+const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'))
+const AdminOrderDetail = lazy(() => import('@/pages/admin/AdminOrderDetail'))
+const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts'))
+const AdminProductForm = lazy(() => import('@/pages/admin/AdminProductForm'))
+const AdminCategories = lazy(() => import('@/pages/admin/AdminCategories'))
+const AdminBrands = lazy(() => import('@/pages/admin/AdminBrands'))
+const AdminCustomers = lazy(() => import('@/pages/admin/AdminCustomers'))
+const AdminReviews = lazy(() => import('@/pages/admin/AdminReviews'))
+const AdminCoupons = lazy(() => import('@/pages/admin/AdminCoupons'))
+const AdminBanners = lazy(() => import('@/pages/admin/AdminBanners'))
+const AdminReports = lazy(() => import('@/pages/admin/AdminReports'))
+const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'))
+const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'))
+const AdminProfile = lazy(() => import('@/pages/admin/AdminProfile'))
 
 /** يطبّق ألوان المتجر القادمة من إعدادات لوحة الإدارة */
 /** يغمّق لونًا سداسيًا بنسبة معيّنة (لحالة التحويم Hover) */
@@ -109,6 +112,26 @@ function ProtectedAdmin({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+/** شاشة تحميل مؤقتة أثناء تحميل حزمة الشاشة (Code Splitting) */
+function RouteFallback() {
+  const { pathname } = useLocation()
+  const isAdmin = pathname.startsWith('/admin')
+  if (isAdmin) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
+        <PageLoader label="جارٍ تحميل لوحة الإدارة..." />
+      </div>
+    )
+  }
+  return (
+    <div className="flex min-h-dvh justify-center bg-page">
+      <div className="app-frame flex h-dvh flex-col overflow-hidden">
+        <PageLoader />
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [booting, setBooting] = useState(true)
 
@@ -118,6 +141,7 @@ export default function App() {
       {booting && <BootScreen onReady={() => setBooting(false)} />}
       <BrowserRouter>
         <ScrollToTop />
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* ------------------------- واجهة التطبيق ------------------------- */}
           <Route element={<AppShell />}>
@@ -224,6 +248,7 @@ export default function App() {
             </Route>
           </Route>
         </Routes>
+        </Suspense>
         <ToastViewport />
       </BrowserRouter>
     </AppProviders>

@@ -165,10 +165,16 @@ for (const route of routes) {
     await act(async () => {
       root.render(React.createElement(App))
     })
-    await act(async () => {
-      await sleep(1500)
-    })
-    const text = (window.document.body.textContent ?? '').replace(/\s+/g, ' ').trim()
+    /* ننتظر انتهاء تحميل الحزمة الكسولة (Code Splitting) — يتوقف عند استقرار المحتوى */
+    let text = ''
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await act(async () => {
+        await sleep(350)
+      })
+      const current = (window.document.body.textContent ?? '').replace(/\s+/g, ' ').trim()
+      if (current === text && current.length > 140) break
+      text = current
+    }
     if (text.length < 70) {
       error = `المحتوى قصير جدًا (${text.length} حرفًا) — ${text.slice(0, 60)}`
     } else {
