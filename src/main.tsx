@@ -4,8 +4,6 @@ import '@fontsource-variable/cairo'
 import '@/index.css'
 import App from '@/App'
 
-document.getElementById('boot')?.remove()
-
 const container = document.getElementById('root')
 if (!container) throw new Error('Root container #root is missing')
 
