@@ -36,7 +36,8 @@ export function matchesQuery(product: Product, query: string, brandName = '', ca
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
-  return q.split(/\s+/).some((word) => haystack.includes(word))
+  /* كل الكلمات يجب أن تُطابق (AND) — نتائج أدق للبحث متعدد الكلمات */
+  return q.split(/\s+/).filter(Boolean).every((word) => haystack.includes(word))
 }
 
 export function filterProducts(
@@ -89,11 +90,14 @@ export function suggestProducts(products: Product[], query: string, limit = 6): 
   if (q.length < 2) return []
   const starts: Product[] = []
   const contains: Product[] = []
+  const words = q.split(/\s+/).filter(Boolean)
   products.forEach((product) => {
     if (product.status !== 'published') return
     const name = product.name.toLowerCase()
+    const haystack = [name, product.sku.toLowerCase(), ...product.tags.map((tag) => tag.toLowerCase())].join(' ')
+    if (!words.every((word) => haystack.includes(word))) return
     if (name.startsWith(q)) starts.push(product)
-    else if (name.includes(q) || product.tags.some((t) => t.toLowerCase().includes(q))) contains.push(product)
+    else contains.push(product)
   })
   return [...starts, ...contains].slice(0, limit)
 }

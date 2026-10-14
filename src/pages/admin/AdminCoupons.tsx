@@ -4,7 +4,7 @@ import type { Coupon } from '@/types'
 import { copyToClipboard, dateInputValue, formatDate, formatNumber, formatPrice, uid } from '@/lib/utils'
 import { AdminPage, Card, DataTable, StatCard, Toolbar } from '@/components/admin/AdminUI'
 import { Badge, Button, Chip } from '@/components/ui'
-import { Input, Select, Textarea, Toggle } from '@/components/ui/form'
+import { Input, RadioGroup, Select, Textarea, Toggle } from '@/components/ui/form'
 import { ConfirmDialog, Modal } from '@/components/ui/overlay'
 import { useAppData } from '@/store/AppDataContext'
 import { useToast } from '@/store/ToastContext'
@@ -324,15 +324,18 @@ export default function AdminCoupons() {
                 onChange={(event) => setDraft({ ...draft, code: event.target.value.toUpperCase() })}
                 placeholder="SAVE10"
               />
-              <Select
-                label="نوع الخصم"
-                value={draft.type}
-                onChange={(event) => setDraft({ ...draft, type: event.target.value as 'percent' | 'fixed' })}
-                options={[
-                  { value: 'percent', label: 'نسبة مئوية %' },
-                  { value: 'fixed', label: `مبلغ ثابت (${settings.currency})` },
-                ]}
-              />
+              <div>
+                <p className="mb-1.5 text-[12.5px] font-semibold text-gray-700">نوع الخصم</p>
+                <RadioGroup
+                  value={draft.type}
+                  onChange={(value) => setDraft({ ...draft, type: value })}
+                  direction="row"
+                  options={[
+                    { value: 'percent', label: 'نسبة مئوية %' },
+                    { value: 'fixed', label: `مبلغ ثابت (${settings.currency})` },
+                  ]}
+                />
+              </div>
               <Input
                 label={draft.type === 'percent' ? 'نسبة الخصم %' : `قيمة الخصم (${settings.currency})`}
                 required

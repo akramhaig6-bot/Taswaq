@@ -74,8 +74,14 @@ function ThemeVars() {
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', settings.colors.primary)
+    /* أيقونة التطبيق المرفوعة من الإعدادات العامة */
+    if (settings.favicon) {
+      document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((node) => {
+        node.setAttribute('href', settings.favicon as string)
+      })
+    }
     document.title = `${settings.storeName} — ${settings.storeName === 'سوقلي' ? 'Sawqli' : 'Store'}`
-  }, [settings.colors, settings.storeName])
+  }, [settings.colors, settings.storeName, settings.favicon])
   return null
 }
 

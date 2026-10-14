@@ -114,6 +114,24 @@ export function MultiImagePicker({
     }
   }
 
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [over, setOver] = useState<number | null>(null)
+
+  /** إعادة الترتيب بالسحب والإفلات */
+  const dropOn = (target: number) => {
+    if (dragging === null || dragging === target) {
+      setDragging(null)
+      setOver(null)
+      return
+    }
+    const next = [...values]
+    const [item] = next.splice(dragging, 1)
+    next.splice(target, 0, item)
+    onChange(next)
+    setDragging(null)
+    setOver(null)
+  }
+
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction
     if (target < 0 || target >= values.length) return
@@ -128,8 +146,26 @@ export function MultiImagePicker({
       {label && <p className="mb-1.5 text-[13px] font-semibold text-gray-700">{label}</p>}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {values.map((src, index) => (
-          <div key={`${src.slice(0, 24)}-${index}`} className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200">
-            <img src={src} alt={`صورة ${index + 1}`} className="size-full object-cover" />
+          <div
+            key={`${src.slice(0, 24)}-${index}`}
+            draggable
+            onDragStart={() => setDragging(index)}
+            onDragEnd={() => {
+              setDragging(null)
+              setOver(null)
+            }}
+            onDragOver={(event) => {
+              event.preventDefault()
+              setOver(index)
+            }}
+            onDrop={() => dropOn(index)}
+            className={cn(
+              'group relative aspect-square cursor-grab overflow-hidden rounded-xl border border-gray-200',
+              dragging === index && 'opacity-40',
+              over === index && dragging !== index && 'border-2 border-brand',
+            )}
+          >
+            <img src={src} alt={`صورة ${index + 1}`} className="pointer-events-none size-full object-cover" />
             {index === 0 && (
               <span className="absolute top-1 start-1 rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">
                 رئيسية

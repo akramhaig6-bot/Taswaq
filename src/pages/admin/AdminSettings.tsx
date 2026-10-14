@@ -9,6 +9,7 @@ import { AdminPage, Card, FieldRow, Toolbar } from '@/components/admin/AdminUI'
 import { Badge, Button, Chip, EmptyState } from '@/components/ui'
 import { Checkbox, Input, Select, Textarea, Toggle } from '@/components/ui/form'
 import { ConfirmDialog, Modal } from '@/components/ui/overlay'
+import { ImagePicker } from '@/components/ui/ImageUploader'
 import { useAppData } from '@/store/AppDataContext'
 import { useAuth } from '@/store/AuthContext'
 import { useToast } from '@/store/ToastContext'
@@ -127,6 +128,48 @@ export default function AdminSettings() {
                     value={settings.copyright}
                     onChange={(event) => updateSettings({ copyright: event.target.value })}
                   />
+                </div>
+              </Card>
+
+              <Card title="شعار المتجر وأيقونة التطبيق" subtitle="تظهر في الشريط العلوي للتطبيق وداخل لوحة الإدارة">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <ImagePicker
+                      label="شعار المتجر (PNG/SVG بخلفية شفافة)"
+                      aspect="logo"
+                      value={settings.logo ?? ''}
+                      onChange={(value) => updateSettings({ logo: value || undefined })}
+                    />
+                    {settings.logo && (
+                      <button
+                        type="button"
+                        className="mt-2 text-[12px] font-bold text-danger"
+                        onClick={() => updateSettings({ logo: undefined })}
+                      >
+                        إزالة الشعار (استخدام النص)
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <ImagePicker
+                      label="أيقونة التطبيق Favicon (مربعة 512×512)"
+                      aspect="square"
+                      value={settings.favicon ?? ''}
+                      onChange={(value) => updateSettings({ favicon: value || undefined })}
+                    />
+                    {settings.favicon && (
+                      <button
+                        type="button"
+                        className="mt-2 text-[12px] font-bold text-danger"
+                        onClick={() => updateSettings({ favicon: undefined })}
+                      >
+                        إزالة الأيقونة
+                      </button>
+                    )}
+                    <p className="mt-2 text-[11.5px] leading-5 text-gray-500">
+                      تُطبَّق الأيقونة فورًا على تبويب المتصفح. إن لم ترفع شعارًا سيُعرض النص «{settings.logoText}».
+                    </p>
+                  </div>
                 </div>
               </Card>
 

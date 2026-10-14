@@ -9,16 +9,19 @@ import { Select } from '@/components/ui/form'
 import { useAppData } from '@/store/AppDataContext'
 import type { Order } from '@/types'
 
-type Period = 'today' | 'week' | 'month' | 'year'
+type Period = 'today' | 'week' | 'month' | 'year' | 'custom'
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: 'اليوم',
   week: 'هذا الأسبوع',
   month: 'هذا الشهر',
   year: 'هذا العام',
+  custom: 'فترة مخصصة',
 }
 
-function periodStart(period: Period): Date {
+const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+
+function periodStart(period: Period, from = ''): Date {
   const now = new Date()
   const start = new Date(now)
   switch (period) {
@@ -31,7 +34,11 @@ function periodStart(period: Period): Date {
     case 'month':
       start.setMonth(now.getMonth() - 1)
       return start
+    case 'year':
+      start.setFullYear(now.getFullYear() - 1)
+      return start
     default:
+      if (from) return new Date(from)
       start.setFullYear(now.getFullYear() - 1)
       return start
   }
@@ -41,17 +48,25 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { orders, products, customers, reviews, categories, settings, categoryProductCount } = useAppData()
   const [period, setPeriod] = useState<Period>('month')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   const inRange = useMemo(() => {
-    const start = periodStart(period)
-    const previousStart = new Date(start.getTime() - (Date.now() - start.getTime()))
-    const current = orders.items.filter((order) => new Date(order.createdAt) >= start && order.status !== 'cancelled')
+    const start = periodStart(period, customFrom)
+    const end = period === 'custom' && customTo ? new Date(`${customTo}T23:59:59`) : new Date()
+    const span = Math.max(1, end.getTime() - start.getTime())
+    const previousStart = new Date(start.getTime() - span)
+    const previousEnd = start
+    const current = orders.items.filter((order) => {
+      const date = new Date(order.createdAt)
+      return date >= start && date <= end && order.status !== 'cancelled'
+    })
     const previous = orders.items.filter((order) => {
       const date = new Date(order.createdAt)
-      return date >= previousStart && date < start && order.status !== 'cancelled'
+      return date >= previousStart && date < previousEnd && order.status !== 'cancelled'
     })
-    return { current, previous, start }
-  }, [orders.items, period])
+    return { current, previous, start, end }
+  }, [orders.items, period, customFrom, customTo])
 
   const stats = useMemo(() => {
     const sales = inRange.current.reduce((sum, order) => sum + order.total, 0)
@@ -96,36 +111,31 @@ export default function Dashboard() {
         buckets.push({ label: `${hour}:00`, value })
       }
     } else {
-      const days = period === 'week' ? 7 : period === 'month' ? 30 : 12
-      for (let index = days - 1; index >= 0; index -= 1) {
-        const start = new Date(now)
-        if (period === 'year') {
-          start.setMonth(now.getMonth() - index, 1)
-          start.setHours(0, 0, 0, 0)
-        } else {
-          start.setDate(now.getDate() - index)
-          start.setHours(0, 0, 0, 0)
-        }
-        const end = new Date(start)
-        if (period === 'year') end.setMonth(start.getMonth() + 1)
-        else end.setDate(start.getDate() + 1)
-        const value = orders.items
+      /* نوزّع الفترة على 8 إلى 12 نقطة حسب طولها */
+      const span = Math.max(1, inRange.end.getTime() - inRange.start.getTime())
+      const dayCount = Math.ceil(span / 86_400_000)
+      const points = dayCount <= 12 ? 12 : dayCount <= 31 ? 10 : dayCount <= 120 ? 12 : 12
+      const monthly = dayCount > 60
+      const step = span / points
+      for (let index = 0; index < points; index += 1) {
+        const start = new Date(inRange.start.getTime() + step * index)
+        const end = new Date(inRange.start.getTime() + step * (index + 1))
+        const value = inRange.current
           .filter((order) => {
             const date = new Date(order.createdAt)
-            return date >= start && date < end && order.status !== 'cancelled'
+            return date >= start && date < end
           })
           .reduce((sum, order) => sum + order.total, 0)
         buckets.push({
-          label:
-            period === 'year'
-              ? `${start.getMonth() + 1}`
-              : `${start.getDate()}/${start.getMonth() + 1}`,
+          label: monthly
+            ? `${MONTHS[start.getMonth()]}`
+            : `${start.getDate()}/${start.getMonth() + 1}`,
           value,
         })
       }
     }
     return buckets
-  }, [period, orders.items, inRange.current])
+  }, [period, orders.items, inRange])
 
   const categorySales = useMemo(() => {
     const totals = new Map<string, number>()
@@ -183,13 +193,34 @@ export default function Dashboard() {
       subtitle={`نظرة عامة على أداء المتجر — ${PERIOD_LABELS[period]}`}
       breadcrumbs={['لوحة الإدارة', 'الرئيسية']}
       actions={
-        <div className="w-44">
-          <Select
-            value={period}
-            onChange={(event) => setPeriod(event.target.value as Period)}
-            options={Object.entries(PERIOD_LABELS).map(([value, label]) => ({ value, label }))}
-            className="h-10"
-          />
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-44">
+            <Select
+              value={period}
+              onChange={(event) => setPeriod(event.target.value as Period)}
+              options={Object.entries(PERIOD_LABELS).map(([value, label]) => ({ value, label }))}
+              className="h-10"
+            />
+          </div>
+          {period === 'custom' && (
+            <>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(event) => setCustomFrom(event.target.value)}
+                className="h-10 rounded-xl border border-gray-200 px-3 text-[12.5px]"
+                aria-label="من تاريخ"
+              />
+              <span className="pb-2 text-gray-400">—</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(event) => setCustomTo(event.target.value)}
+                className="h-10 rounded-xl border border-gray-200 px-3 text-[12.5px]"
+                aria-label="إلى تاريخ"
+              />
+            </>
+          )}
         </div>
       }
     >
@@ -224,6 +255,18 @@ export default function Dashboard() {
           onClick={() => navigate('/admin/customers')}
         />
       </div>
+
+      {lowStock.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="منتجات منخفضة المخزون"
+            value={formatNumber(lowStock.length)}
+            hint={`أقل من أو يساوي ${settings.lowStockThreshold} قطع`}
+            icon={<AlertTriangle className="size-4" />}
+            onClick={() => navigate('/admin/reports')}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card title="المبيعات" subtitle={`إجمالي المبيعات خلال ${PERIOD_LABELS[period]}`} className="xl:col-span-2">

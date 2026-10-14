@@ -225,6 +225,69 @@ const record = (name, ok, detail = '') => {
   await server.close()
 }
 
+/* ------------------- 4) البحث متعدد الكلمات + إبراز النص ------------------- */
+{
+  const { window, server, act } = await boot('/search')
+  try {
+    const input = window.document.querySelector(
+      'input[placeholder*="ابحث"], input[placeholder*="ابحث عن"], input[type="search"]',
+    )
+    if (!input) throw new Error('لم يتم العثور على حقل البحث')
+
+    await act(async () => {
+      setValue(window, input, 'جوال سامسونج')
+    })
+    await act(async () => {
+      await sleep(500)
+    })
+    await act(async () => {
+      input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    await act(async () => {
+      await sleep(800)
+    })
+
+    const text = window.document.body.textContent ?? ''
+    const strongCount = window.document.querySelectorAll('strong').length
+    const hasResultsHeader = text.includes('نتائج البحث عن')
+    record(
+      'البحث متعدد الكلمات + الإبراز',
+      hasResultsHeader && strongCount > 0,
+      `عناوين النتائج: ${hasResultsHeader} — عناصر <strong>: ${strongCount}`,
+    )
+  } catch (error) {
+    record('البحث متعدد الكلمات + الإبراز', false, String(error?.message ?? error))
+  }
+  await server.close()
+}
+
+/* ------------- 5) تأكيد الإزالة عند خفض الكمية إلى صفر ------------- */
+{
+  const { window, server, act } = await boot('/cart', {
+    'sawqli.v1.session.customer': '"u-1"',
+    'sawqli.v1.cart': JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
+  })
+  try {
+    const minus = window.document.querySelector('button[aria-label="تقليل الكمية"]')
+    if (!minus) throw new Error('لم يتم العثور على زر تقليل الكمية')
+    await act(async () => {
+      click(window, minus)
+    })
+    await act(async () => {
+      await sleep(150)
+    })
+    const text = window.document.body.textContent ?? ''
+    record(
+      'تأكيد الإزالة عند الكمية = 1',
+      text.includes('هل تريد إزالة هذا المنتج من السلة'),
+      text.includes('الكمية الحالية 1') ? 'ظهر نص التأكيد مع تنبيه الكمية' : 'ظهر نص التأكيد',
+    )
+  } catch (error) {
+    record('تأكيد الإزالة عند الكمية = 1', false, String(error?.message ?? error))
+  }
+  await server.close()
+}
+
 const failed = results.filter((item) => !item.ok).length
 console.log(failed === 0 ? '\nكل التدفقات نجحت ✅' : `\nفشل ${failed} تدفق ❌`)
 process.exit(failed === 0 ? 0 : 1)

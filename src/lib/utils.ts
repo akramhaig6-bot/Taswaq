@@ -227,3 +227,74 @@ export function unique<T>(items: T[]): T[] {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
+
+/* ---------------------- أدوات مساعدة إضافية (بحث/أسعار) ---------------------- */
+
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+
+/** يحوّل الأرقام العربية-الهندية (٠-٩) إلى لاتينية */
+export function toLatinDigits(value: string): string {
+  return value.replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
+}
+
+/**
+ * يقرأ مبلغًا مكتوبًا نصًا: يقبل الأرقام العربية، الفاصلة العشرية العربية (٫)،
+ * الفواصل (1,500) ولاحقات الاختصار: k/K (ألف) و m/M (مليون).
+ * مثال: "٥٠٠" → 500، "1.5k" → 1500، "2m" → 2000000
+ */
+export function parseAmount(value: string): number | undefined {
+  if (!value) return undefined
+  const normalized = toLatinDigits(value.trim())
+    .replace(/[٫،]/g, '.')
+    .replace(/,/g, '')
+    .toLowerCase()
+  const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(k|m|ألف|الف|مليون)?/)
+  if (!match) return undefined
+  const base = Number.parseFloat(match[1])
+  if (Number.isNaN(base)) return undefined
+  const suffix = match[2]
+  const factor = suffix === 'k' || suffix === 'ألف' || suffix === 'الف' ? 1000 : suffix === 'm' || suffix === 'مليون' ? 1_000_000 : 1
+  return base * factor
+}
+
+export interface HighlightPart {
+  text: string
+  match: boolean
+}
+
+/** يقسّم نصًا إلى أجزاء: الأجزاء المطابقة لكلمات البحث تُعلَّم لتُبرز بخط عريض */
+export function highlightParts(text: string, query: string): HighlightPart[] {
+  const terms = toLatinDigits(query)
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length >= 2)
+  if (terms.length === 0) return [{ text, match: false }]
+
+  const lower = toLatinDigits(text).toLowerCase()
+  const matched = new Array(text.length).fill(false)
+  terms.forEach((term) => {
+    let from = 0
+    for (;;) {
+      const index = lower.indexOf(term, from)
+      if (index === -1) break
+      for (let i = index; i < index + term.length && i < matched.length; i += 1) matched[i] = true
+      from = index + term.length
+    }
+  })
+
+  const parts: HighlightPart[] = []
+  let buffer = ''
+  let current = matched[0] ?? false
+  for (let index = 0; index < text.length; index += 1) {
+    if (matched[index] === current) {
+      buffer += text[index]
+      continue
+    }
+    parts.push({ text: buffer, match: current })
+    buffer = text[index]
+    current = matched[index]
+  }
+  if (buffer) parts.push({ text: buffer, match: current })
+  return parts
+}

@@ -3,6 +3,7 @@ import { ArrowRight, Heart, Search, ShoppingCart } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/Button'
+import { useAppData } from '@/store/AppDataContext'
 import { useCart } from '@/store/CartContext'
 import { useLang } from '@/store/LanguageContext'
 
@@ -11,6 +12,7 @@ export function TopBar({ showSearch = true }: { showSearch?: boolean }) {
   const navigate = useNavigate()
   const { t } = useLang()
   const { count } = useCart()
+  const { settings } = useAppData()
 
   return (
     <header className="sticky top-0 z-30 shrink-0 border-b border-gray-100 bg-white/95 backdrop-blur">
@@ -19,9 +21,13 @@ export function TopBar({ showSearch = true }: { showSearch?: boolean }) {
           type="button"
           onClick={() => navigate('/')}
           className="shrink-0 text-[19px] font-extrabold leading-none text-brand"
-          aria-label="سوقلي"
+          aria-label={settings.storeName}
         >
-          سوقلي
+          {settings.logo ? (
+            <img src={settings.logo} alt={settings.storeName} className="h-7 w-auto object-contain" />
+          ) : (
+            settings.storeName
+          )}
         </button>
 
         {showSearch && (

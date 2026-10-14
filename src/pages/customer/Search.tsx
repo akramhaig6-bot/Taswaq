@@ -254,6 +254,7 @@ export default function Search() {
             <ProductGrid
               products={results}
               loading={loading}
+              highlight={submitted}
               emptyState={
                 <EmptyState
                   icon={<PackageSearch className="size-9" />}

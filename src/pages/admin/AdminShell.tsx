@@ -144,7 +144,11 @@ export function AdminShell() {
       >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-4">
           <div>
-            <p className="text-lg font-extrabold">{settings.storeName}</p>
+            {settings.logo ? (
+              <img src={settings.logo} alt={settings.storeName} className="h-7 w-auto object-contain" />
+            ) : (
+              <p className="text-lg font-extrabold">{settings.storeName}</p>
+            )}
             <p className="text-[11px] text-white/60">لوحة الإدارة</p>
           </div>
           <button

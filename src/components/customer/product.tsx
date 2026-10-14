@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Heart, PackageSearch, ShoppingCart } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Product } from '@/types'
-import { cn, formatPrice } from '@/lib/utils'
+import { cn, formatPrice, highlightParts } from '@/lib/utils'
 import { discountPercent, isDiscountActive, isOutOfStock } from '@/lib/pricing'
 import { Badge, DiscountBadge, EmptyState, ProductGridSkeleton, Rating } from '@/components/ui/display'
 import { Button } from '@/components/ui/Button'
@@ -13,7 +13,16 @@ import { useToast } from '@/store/ToastContext'
 import { useAuth } from '@/store/AuthContext'
 import { useWishlist } from '@/store/WishlistContext'
 
-export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
+export function ProductCard({
+  product,
+  compact = false,
+  highlight,
+}: {
+  product: Product
+  compact?: boolean
+  /** كلمة البحث لإبرازها بخط عريض في اسم المنتج */
+  highlight?: string
+}) {
   const navigate = useNavigate()
   const { t } = useLang()
   const { settings } = useAppData()
@@ -98,7 +107,19 @@ export function ProductCard({ product, compact = false }: { product: Product; co
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-2.5">
-        <h3 className="line-clamp-2 min-h-9 text-[13px] font-semibold leading-[18px] text-gray-800">{product.name}</h3>
+        <h3 className="line-clamp-2 min-h-9 text-[13px] font-semibold leading-[18px] text-gray-800">
+          {highlight
+            ? highlightParts(product.name, highlight).map((part, index) =>
+                part.match ? (
+                  <strong key={index} className="font-extrabold text-gray-900">
+                    {part.text}
+                  </strong>
+                ) : (
+                  <span key={index}>{part.text}</span>
+                ),
+              )
+            : product.name}
+        </h3>
         {!compact && product.reviewCount > 0 && <Rating value={product.rating} count={product.reviewCount} size={12} />}
         <div className="mt-auto flex flex-col gap-1">
           <div className="flex flex-wrap items-baseline gap-x-1.5">
@@ -133,11 +154,14 @@ export function ProductGrid({
   loading = false,
   emptyState,
   pageSize = 8,
+  highlight,
 }: {
   products: Product[]
   loading?: boolean
   emptyState?: React.ReactNode
   pageSize?: number
+  /** كلمة البحث لإبرازها في أسماء المنتجات */
+  highlight?: string
 }) {
   const { t } = useLang()
   const [visible, setVisible] = useState(pageSize)
@@ -178,7 +202,7 @@ export function ProductGrid({
     <div>
       <div className="grid grid-cols-2 gap-3">
         {shown.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} highlight={highlight} />
         ))}
       </div>
       <div ref={sentinel} className="h-8" />

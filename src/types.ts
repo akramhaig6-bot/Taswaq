@@ -334,6 +334,10 @@ export interface LanguageSetting {
 export interface Settings {
   storeName: string
   logoText: string
+  /** شعار المتجر (صورة مرفوعة) — إن لم تُحدَّد يُعرض النص logoText */
+  logo?: string
+  /** أيقونة التطبيق Favicon (صورة مرفوعة) */
+  favicon?: string
   copyright: string
   version: string
   currency: string

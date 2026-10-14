@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, ShoppingCart, Tag, Ticket, Trash2 } from 'lucide-react'
 import type { CartItem } from '@/types'
@@ -26,7 +26,16 @@ export default function Cart() {
   const [code, setCode] = useState('')
   const [codeError, setCodeError] = useState('')
   const [applying, setApplying] = useState(false)
-  const [pendingRemove, setPendingRemove] = useState<CartItem | null>(null)
+  const [pendingRemove, setPendingRemove] = useState<{ item: CartItem; reason: 'quantity' | 'button' } | null>(null)
+
+  /** إزالة فورية (بالسحب لليسار) مع إمكانية التراجع */
+  const removeWithUndo = (item: CartItem) => {
+    removeItem(item.id)
+    showToast('تم إزالة المنتج من السلة', {
+      type: 'info',
+      action: { label: 'تراجع', onClick: () => restoreItem(item) },
+    })
+  }
 
   const lines = useMemo(
     () =>
@@ -160,67 +169,72 @@ export default function Cart() {
           </div>
         )}
 
+        <p className="text-center text-[11px] text-gray-400">اسحب المنتج لليسار لحذفه بسرعة</p>
+
         <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white">
           {lines.map(({ item, product }) => {
             const unavailable = !product || product.status !== 'published' || isOutOfStock(product)
             return (
-              <li key={item.id} className="relative p-3">
-                {unavailable && (
-                  <span className="absolute inset-0 z-10 flex items-center justify-center bg-danger/10 text-[13px] font-extrabold text-danger">
-                    غير متوفر
-                  </span>
-                )}
-                <div className="flex gap-3">
-                  <img
-                    src={product?.images[0]}
-                    alt={product?.name}
-                    onClick={() => product && navigate(`/product/${product.id}`)}
-                    className="size-20 shrink-0 cursor-pointer rounded-xl border border-gray-100 object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => product && navigate(`/product/${product.id}`)}
-                        className="line-clamp-2 text-start text-[13px] font-semibold text-gray-800"
-                      >
-                        {product?.name ?? 'منتج محذوف'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingRemove(item)}
-                        className="flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-danger/10 hover:text-danger"
-                        aria-label="حذف"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
-                    <p className="mt-0.5 text-[11.5px] text-gray-500">{itemOptionsLabel(item)}</p>
-                    <div className="mt-1">
-                      <PriceTag
-                        price={itemUnitPrice(item)}
-                        compareAtPrice={product && product.compareAtPrice && product.compareAtPrice > product.price ? product.compareAtPrice : undefined}
-                        currency={settings.currency}
-                        size="sm"
-                      />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <QuantityStepper
-                        size="sm"
-                        value={item.quantity}
-                        max={maxQuantity(item)}
-                        onChange={(value) => {
-                          if (value < 1) return
-                          updateQuantity(item.id, value)
-                        }}
-                        onExceedMax={(max) => showToast(`الكمية المتوفرة ${max} فقط`, { type: 'warning' })}
-                      />
-                      <span className="text-[13.5px] font-extrabold text-gray-900">
-                        {formatPrice(itemUnitPrice(item) * item.quantity, settings.currency)}
-                      </span>
+              <li key={item.id}>
+                <SwipeableRow onDelete={() => removeWithUndo(item)} disabled={false}>
+                  {unavailable && (
+                    <span className="absolute inset-0 z-10 flex items-center justify-center bg-danger/10 text-[13px] font-extrabold text-danger">
+                      غير متوفر
+                    </span>
+                  )}
+                  <div className="flex gap-3">
+                    <img
+                      src={product?.images[0]}
+                      alt={product?.name}
+                      onClick={() => product && navigate(`/product/${product.id}`)}
+                      className="size-20 shrink-0 cursor-pointer rounded-xl border border-gray-100 object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => product && navigate(`/product/${product.id}`)}
+                          className="line-clamp-2 text-start text-[13px] font-semibold text-gray-800"
+                        >
+                          {product?.name ?? 'منتج محذوف'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingRemove({ item, reason: 'button' })}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-danger/10 hover:text-danger"
+                          aria-label="حذف"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                      <p className="mt-0.5 text-[11.5px] text-gray-500">{itemOptionsLabel(item)}</p>
+                      <div className="mt-1">
+                        <PriceTag
+                          price={itemUnitPrice(item)}
+                          compareAtPrice={product && product.compareAtPrice && product.compareAtPrice > product.price ? product.compareAtPrice : undefined}
+                          currency={settings.currency}
+                          size="sm"
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <QuantityStepper
+                          size="sm"
+                          value={item.quantity}
+                          max={maxQuantity(item)}
+                          onChange={(value) => {
+                            if (value < 1) return
+                            updateQuantity(item.id, value)
+                          }}
+                          onMinReached={() => setPendingRemove({ item, reason: 'quantity' })}
+                          onExceedMax={(max) => showToast(`الكمية المتوفرة ${max} فقط`, { type: 'warning' })}
+                        />
+                        <span className="text-[13.5px] font-extrabold text-gray-900">
+                          {formatPrice(itemUnitPrice(item) * item.quantity, settings.currency)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </SwipeableRow>
               </li>
             )
           })}
@@ -279,21 +293,79 @@ export default function Cart() {
       <ConfirmDialog
         open={Boolean(pendingRemove)}
         title="إزالة منتج"
-        message="هل تريد إزالة هذا المنتج من السلة؟"
+        message={
+          pendingRemove?.reason === 'quantity'
+            ? 'الكمية الحالية 1 — هل تريد إزالة هذا المنتج من السلة؟'
+            : 'هل تريد إزالة هذا المنتج من السلة؟'
+        }
         confirmLabel="إزالة"
         danger
         onCancel={() => setPendingRemove(null)}
         onConfirm={() => {
           if (!pendingRemove) return
-          const removed = pendingRemove
-          removeItem(removed.id)
+          removeWithUndo(pendingRemove.item)
           setPendingRemove(null)
-          showToast('تم إزالة المنتج من السلة', {
-            type: 'info',
-            action: { label: 'تراجع', onClick: () => restoreItem(removed) },
-          })
         }}
       />
     </Screen>
+  )
+}
+
+/* --------------------------------------------------------------------------
+   صف قابل للسحب لليسار (Swipe to Delete) — حسب الوثيقة (9.2):
+   السحب لليسار يُظهر زر "حذف"، والضغط عليه يحذف مباشرة مع Toast فيه "تراجع".
+   -------------------------------------------------------------------------- */
+function SwipeableRow({
+  children,
+  onDelete,
+}: {
+  children: React.ReactNode
+  onDelete: () => void
+  disabled?: boolean
+}) {
+  const startX = useRef<number | null>(null)
+  const [offset, setOffset] = useState(0)
+  const REVEAL = 88
+
+  const onTouchStart = (event: React.TouchEvent) => {
+    startX.current = event.touches[0]?.clientX ?? null
+  }
+  const onTouchMove = (event: React.TouchEvent) => {
+    if (startX.current === null) return
+    const delta = (event.touches[0]?.clientX ?? 0) - startX.current
+    /* RTL: السحب لليسار يعني delta سالب */
+    setOffset(Math.max(-REVEAL, Math.min(0, delta)))
+  }
+  const onTouchEnd = () => {
+    setOffset((value) => (value < -REVEAL / 2 ? -REVEAL : 0))
+    startX.current = null
+  }
+
+  return (
+    <div className="relative overflow-hidden bg-danger/90">
+      <button
+        type="button"
+        onClick={() => {
+          setOffset(0)
+          onDelete()
+        }}
+        className={cn(
+          'absolute inset-y-0 end-0 flex w-[88px] flex-col items-center justify-center gap-1 bg-danger text-[11.5px] font-bold text-white transition-opacity',
+          offset === 0 && 'pointer-events-none opacity-0',
+        )}
+      >
+        <Trash2 className="size-4" />
+        حذف
+      </button>
+      <div
+        className="relative bg-white transition-transform duration-200 ease-out"
+        style={{ transform: `translateX(${offset}px)`, touchAction: 'pan-y' }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="relative p-3">{children}</div>
+      </div>
+    </div>
   )
 }

@@ -190,6 +190,7 @@ export function QuantityStepper({
   max = 99,
   size = 'md',
   onExceedMax,
+  onMinReached,
 }: {
   value: number
   onChange: (value: number) => void
@@ -197,6 +198,8 @@ export function QuantityStepper({
   max?: number
   size?: 'sm' | 'md'
   onExceedMax?: (max: number) => void
+  /** يُستدعى عند الضغط على (-) والكمية عند الحد الأدنى (لإظهار تأكيد الإزالة) */
+  onMinReached?: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
@@ -229,8 +232,13 @@ export function QuantityStepper({
     <div className="inline-flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
       <button
         type="button"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
+        onClick={() => {
+          if (value <= min) {
+            onMinReached?.()
+            return
+          }
+          onChange(Math.max(min, value - 1))
+        }}
         className={cn('flex items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-35', btn)}
         aria-label="تقليل الكمية"
       >

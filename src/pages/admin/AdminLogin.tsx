@@ -49,7 +49,11 @@ export default function AdminLogin() {
       <div className="w-full max-w-[420px]">
         <div className="rounded-2xl bg-white p-6 shadow-2xl">
           <div className="flex flex-col items-center gap-1.5">
-            <span className="text-2xl font-extrabold text-brand">{settings.storeName}</span>
+            {settings.logo ? (
+              <img src={settings.logo} alt={settings.storeName} className="h-10 w-auto object-contain" />
+            ) : (
+              <span className="text-2xl font-extrabold text-brand">{settings.storeName}</span>
+            )}
             <h1 className="text-[15px] font-bold text-gray-600">لوحة الإدارة</h1>
           </div>
 

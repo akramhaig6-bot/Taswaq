@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Input, PasswordStrengthBar } from '@/components/ui/form'
 import { Tabs } from '@/components/ui/display'
+import { useAppData } from '@/store/AppDataContext'
 import { useAuth } from '@/store/AuthContext'
 import { useToast } from '@/store/ToastContext'
 
@@ -16,6 +17,7 @@ export default function Auth() {
   const navigate = useNavigate()
   const location = useLocation()
   const { login, register } = useAuth()
+  const { settings } = useAppData()
   const { showToast } = useToast()
   const from = (location.state as { from?: string } | null)?.from
 
@@ -106,7 +108,11 @@ export default function Auth() {
     <Screen header={<PageHeader title={tab === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'} backTo={-1} />}>
       <div className="p-4">
         <div className="mb-4 flex justify-center">
-          <span className="text-2xl font-extrabold text-brand">سوقلي</span>
+          {settings.logo ? (
+            <img src={settings.logo} alt={settings.storeName} className="h-9 w-auto object-contain" />
+          ) : (
+            <span className="text-2xl font-extrabold text-brand">{settings.storeName}</span>
+          )}
         </div>
 
         <Tabs
