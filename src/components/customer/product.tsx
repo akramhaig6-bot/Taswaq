@@ -63,12 +63,15 @@ export function ProductCard({
     const added = wishlist.toggle(product.id)
     setPulse(true)
     window.setTimeout(() => setPulse(false), 450)
-    showToast(
-      added
-        ? t('toast.addedToWishlist', 'تمت الإضافة إلى المفضلة')
-        : t('toast.removedFromWishlist', 'تمت الإزالة من المفضلة'),
-      { type: added ? 'success' : 'info' },
-    )
+    if (added) {
+      showToast(t('toast.addedToWishlist', 'تمت الإضافة إلى المفضلة'), { type: 'success' })
+      return
+    }
+    /* الوثيقة (16): إزالة من المفضلة + Toast مع زر «تراجع» (5 ثوانٍ) */
+    showToast(t('toast.removedFromWishlist', 'تمت الإزالة من المفضلة'), {
+      type: 'info',
+      action: { label: 'تراجع', onClick: () => wishlist.toggle(product.id) },
+    })
   }
 
   return (
