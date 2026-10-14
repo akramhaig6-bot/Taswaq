@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProviders, useAppData, useAuth } from '@/store'
 import { BootScreen } from '@/components/layout/BootScreen'
@@ -64,7 +64,7 @@ function darken(hex: string, amount = 0.14): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
-function ThemeVars() {
+function ThemeVars({ splashActive }: { splashActive: boolean }) {
   const { settings } = useAppData()
   useEffect(() => {
     const root = document.documentElement
@@ -76,7 +76,7 @@ function ThemeVars() {
     root.style.setProperty('--c-brand-soft', `${settings.colors.primary}1a`)
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', settings.colors.primary)
+      ?.setAttribute('content', splashActive ? '#0A1628' : settings.colors.primary)
     /* أيقونة التطبيق المرفوعة من الإعدادات العامة */
     if (settings.favicon) {
       document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((node) => {
@@ -84,7 +84,7 @@ function ThemeVars() {
       })
     }
     document.title = `${settings.storeName} — ${settings.storeName === 'سوقلي' ? 'Sawqli' : 'Store'}`
-  }, [settings.colors, settings.storeName, settings.favicon])
+  }, [settings.colors, settings.storeName, settings.favicon, splashActive])
   return null
 }
 
@@ -134,11 +134,12 @@ function RouteFallback() {
 
 export default function App() {
   const [booting, setBooting] = useState(true)
+  const finishBoot = useCallback(() => setBooting(false), [])
 
   return (
     <AppProviders>
-      <ThemeVars />
-      {booting && <BootScreen onReady={() => setBooting(false)} />}
+      <ThemeVars splashActive={booting} />
+      {booting && <BootScreen onReady={finishBoot} />}
       <BrowserRouter>
         <ScrollToTop />
         <Suspense fallback={<RouteFallback />}>
