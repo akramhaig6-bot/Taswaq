@@ -49,12 +49,24 @@ import AdminSettings from '@/pages/admin/AdminSettings'
 import AdminProfile from '@/pages/admin/AdminProfile'
 
 /** يطبّق ألوان المتجر القادمة من إعدادات لوحة الإدارة */
+/** يغمّق لونًا سداسيًا بنسبة معيّنة (لحالة التحويم Hover) */
+function darken(hex: string, amount = 0.14): string {
+  const value = hex.trim().replace('#', '')
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) return hex
+  const number = Number.parseInt(value, 16)
+  const mix = (channel: number) => Math.max(0, Math.round(channel * (1 - amount)))
+  const r = mix((number >> 16) & 255)
+  const g = mix((number >> 8) & 255)
+  const b = mix(number & 255)
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
 function ThemeVars() {
   const { settings } = useAppData()
   useEffect(() => {
     const root = document.documentElement
     root.style.setProperty('--c-brand', settings.colors.primary)
-    root.style.setProperty('--c-brand-dark', settings.colors.primary)
+    root.style.setProperty('--c-brand-dark', darken(settings.colors.primary))
     root.style.setProperty('--c-secondary', settings.colors.secondary)
     root.style.setProperty('--c-success', settings.colors.success)
     root.style.setProperty('--c-danger', settings.colors.danger)

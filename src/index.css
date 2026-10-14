@@ -6,10 +6,10 @@
    ========================================================================== */
 
 :root {
-  --c-brand: #2563eb;
-  --c-brand-dark: #1d4ed8;
-  --c-brand-soft: #eff6ff;
-  --c-secondary: #7c3aed;
+  --c-brand: #7c3aed;
+  --c-brand-dark: #6d28d9;
+  --c-brand-soft: #ede9fe;
+  --c-secondary: #2563eb;
   --c-success: #16a34a;
   --c-danger: #dc2626;
   --c-warning: #ea580c;

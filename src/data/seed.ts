@@ -676,7 +676,7 @@ export const seedSettings: Settings = {
   copyright: '© 2026 سوقلي. جميع الحقوق محفوظة.',
   version: '1.0.0',
   currency: 'ر.س',
-  colors: { primary: '#2563eb', secondary: '#7c3aed', success: '#16a34a', danger: '#dc2626' },
+  colors: { primary: '#7c3aed', secondary: '#2563eb', success: '#16a34a', danger: '#dc2626' },
   contact: {
     phone: '0551234567',
     email: 'support@sawqli.sa',
