@@ -273,8 +273,8 @@ export default function Cart() {
                   }}
                   placeholder={t('cart.couponPlaceholder', 'أدخل كود الخصم')}
                   className={cn(
-                    'h-11 flex-1 rounded-xl border bg-white px-3 text-[13px] uppercase outline-none focus:ring-4',
-                    codeError ? 'border-danger focus:ring-danger/15' : 'border-gray-200 focus:border-brand focus:ring-brand/15',
+                    'h-11 flex-1 rounded-xl border bg-white px-3 text-[13px] uppercase outline-none',
+                    codeError ? 'border-danger focus:border-danger' : 'border-gray-200 focus:border-brand',
                   )}
                 />
                 <Button loading={applying} onClick={onApplyCoupon} icon={<Tag className="size-4" />}>
@@ -282,7 +282,6 @@ export default function Cart() {
                 </Button>
               </div>
               {codeError && <p className="mt-1.5 text-[12px] font-semibold text-danger">{codeError}</p>}
-              <p className="mt-2 text-[11px] text-gray-400">جرّب: SAVE10 أو WELCOME50</p>
             </>
           )}
         </section>

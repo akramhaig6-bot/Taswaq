@@ -5,12 +5,10 @@ import { cn, passwordStrength } from '@/lib/utils'
 
 const fieldBase =
   'w-full rounded-xl border bg-white text-sm text-gray-900 placeholder:text-gray-400 transition-colors ' +
-  'focus:outline-none focus:ring-4 disabled:bg-gray-50 disabled:text-gray-500'
+  'focus:outline-none disabled:bg-gray-50 disabled:text-gray-500'
 
 function ringClass(error?: string) {
-  return error
-    ? 'border-danger focus:border-danger ring-danger/15'
-    : 'border-gray-200 focus:border-brand ring-brand/15'
+  return error ? 'border-danger focus:border-danger' : 'border-gray-200 focus:border-brand'
 }
 
 interface FieldWrapProps {
@@ -92,7 +90,7 @@ export function Input({ label, error, hint, icon, className, wrapperClassName, t
 }
 
 export function SearchInput({ className, ...rest }: InputProps) {
-  return <Input icon={<Search className="size-4" />} className={cn('bg-gray-50', className)} {...rest} />
+  return <Input icon={<Search className="size-4" />} className={className} {...rest} />
 }
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -251,7 +249,7 @@ export function RadioGroup<T extends string>({
             className={cn(
               'flex items-center gap-3 rounded-xl border bg-white p-3 text-start transition-all',
               direction === 'row' && 'flex-1',
-              active ? 'border-brand bg-brand-soft/60 ring-2 ring-brand/20' : 'border-gray-200 hover:border-gray-300',
+              active ? 'border-brand bg-brand-soft/60' : 'border-gray-200 hover:border-gray-300',
             )}
           >
             <span

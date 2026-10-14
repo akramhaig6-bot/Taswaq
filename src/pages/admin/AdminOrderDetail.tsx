@@ -374,7 +374,7 @@ export default function AdminOrderDetail() {
                   target: `/orders/${order.id}`,
                 })
                 setRefundOpen(false)
-                showToast('تم تنفيذ الاسترجاع (تجريبي).', { type: 'success' })
+                showToast('تم تنفيذ الاسترجاع.', { type: 'success' })
               }}
             >
               تأكيد الاسترجاع
@@ -387,7 +387,7 @@ export default function AdminOrderDetail() {
       >
         <p className="flex items-center gap-2 text-[12.5px] leading-6 text-gray-600">
           <Send className="size-4 text-brand" />
-          سيتم استرجاع مبلغ {formatPrice(order.total, settings.currency)} إلى العميل (محاكاة للعرض التجريبي).
+          سيتم استرجاع مبلغ {formatPrice(order.total, settings.currency)} إلى العميل.
         </p>
       </Modal>
     </AdminPage>

@@ -19,7 +19,7 @@ const TYPE_META: Record<AppNotification['type'], { label: string; emoji: string 
 const TEMPLATES: Array<{ title: string; body: string; type: AppNotification['type']; target: string }> = [
   {
     title: 'خصم خاص لك اليوم',
-    body: 'استمتع بخصم 15% على الجوالات اليوم فقط. استخدم كود TECH15 عند الدفع.',
+    body: 'استمتع بخصم خاص على الجوالات اليوم فقط.',
     type: 'offer',
     target: '/offers',
   },
@@ -167,7 +167,7 @@ export default function AdminNotifications() {
             </div>
 
             <p className="rounded-xl bg-brand-soft p-3 text-[11.5px] leading-5 text-gray-600">
-              الإشعارات داخل التطبيق فقط (In-App) بحسب ملاحظات التصميم، ولا يوجد تكامل SMS في هذه النسخة.
+              تصل الإشعارات إلى العملاء داخل التطبيق.
             </p>
           </div>
         </Card>

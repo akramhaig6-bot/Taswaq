@@ -322,7 +322,7 @@ export default function AdminCoupons() {
                 value={draft.code}
                 error={errors.code}
                 onChange={(event) => setDraft({ ...draft, code: event.target.value.toUpperCase() })}
-                placeholder="SAVE10"
+                placeholder="أدخل كود الكوبون"
               />
               <div>
                 <p className="mb-1.5 text-[12.5px] font-semibold text-gray-700">نوع الخصم</p>

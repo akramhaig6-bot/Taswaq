@@ -116,7 +116,7 @@ export default function Search() {
               if (event.key === 'Enter') runSearch(query)
             }}
             placeholder={t('topbar.searchPlaceholder', 'ابحث عن منتجات...')}
-            className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 ps-9 pe-8 text-[13px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-9 pe-8 text-[13px] outline-none focus:border-brand"
           />
           {query && (
             <button

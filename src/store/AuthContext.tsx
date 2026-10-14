@@ -29,7 +29,7 @@ interface AuthValue {
   adminLogout: () => void
   /** حالة انتهاء الجلسة (تظهر Modal في واجهة العميل) */
   sessionExpired: boolean
-  /** لأغراض العرض التجريبي: إنهاء الجلسة الحالية فورًا */
+  /** إنهاء الجلسة الحالية فورًا */
   expireSessionNow: () => void
   /** إغلاق تنبيه انتهاء الجلسة + تسجيل الخروج */
   acknowledgeSessionExpired: () => void

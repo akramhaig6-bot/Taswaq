@@ -47,7 +47,7 @@ export default function AdminLogin() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-ink via-[#111c33] to-[#1e2a4a] p-4" dir="rtl" lang="ar">
       <div className="w-full max-w-[420px]">
-        <div className="rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6">
           <div className="flex flex-col items-center gap-1.5">
             {settings.logo ? (
               <img src={settings.logo} alt={settings.storeName} className="h-10 w-auto object-contain" />
@@ -116,11 +116,6 @@ export default function AdminLogin() {
               تسجيل الدخول
             </Button>
           </form>
-
-          <div className="mt-4 rounded-xl bg-gray-50 p-3 text-center">
-            <p className="text-[11.5px] font-bold text-gray-600">بيانات الدخول</p>
-            <p className="mt-0.5 text-[11.5px] text-gray-500">haiderhajjah@gmail.com — 2009</p>
-          </div>
         </div>
 
         <p className="mt-4 text-center text-[11.5px] text-white/60">{settings.copyright}</p>

@@ -86,11 +86,11 @@ export default function AdminSettings() {
   return (
     <AdminPage
       title={activeLabel}
-      subtitle="جميع التغييرات تُحفظ مباشرة في بيانات المتجر التجريبية"
+      subtitle="جميع التغييرات تُحفظ مباشرة وتُطبَّق على المتجر"
       breadcrumbs={['لوحة الإدارة', 'الإعدادات', activeLabel]}
       actions={
         <Button variant="outline" icon={<RotateCcw className="size-4" />} onClick={() => setResetOpen(true)}>
-          استعادة البيانات التجريبية
+          إعادة تعيين بيانات المتجر
         </Button>
       }
     >
@@ -815,10 +815,10 @@ export default function AdminSettings() {
                 </div>
               </Card>
 
-              <Card title="اختبار حالات الواجهة">
+              <Card title="جلسة العميل">
                 <p className="mb-3 text-[12.5px] leading-6 text-gray-600">
-                  لمعاينة حالة «انتهت الجلسة» في تطبيق العميل (القسم 33.2 من الوثيقة) يمكن إنهاء جلسة العميل الحالية
-                  فورًا ثم فتح المتجر.
+                  يمكنك إنهاء جلسة العميل المسجّل دخوله حاليًا على هذا الجهاز، وسيظهر له تنبيه بانتهاء الجلسة
+                  عند فتح المتجر.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -829,10 +829,10 @@ export default function AdminSettings() {
                         return
                       }
                       expireSessionNow()
-                      showToast('تم إنهاء الجلسة — افتح المتجر لرؤية التنبيه.', { type: 'success' })
+                      showToast('تم إنهاء الجلسة الحالية.', { type: 'success' })
                     }}
                   >
-                    محاكاة انتهاء جلسة العميل
+                    إنهاء جلسة العميل الحالية
                   </Button>
                   <Button variant="ghost" onClick={() => window.open('/', '_blank')}>
                     فتح المتجر
@@ -840,7 +840,7 @@ export default function AdminSettings() {
                 </div>
               </Card>
 
-              <Card title="بيانات المتجر" subtitle="حجم البيانات التجريبية المحفوظة محليًا">
+              <Card title="بيانات المتجر" subtitle="حجم البيانات المحفوظة حاليًا">
                 <FieldRow label="المنتجات" value={formatNumber(products.items.length)} />
                 <FieldRow label="الطلبات" value={formatNumber(orders.items.length)} />
                 <FieldRow label="العملاء" value={formatNumber(customers.items.length)} />
@@ -854,7 +854,7 @@ export default function AdminSettings() {
                       showToast('تم إرجاع البيانات لحالتها الأصلية.', { type: 'success' })
                     }}
                   >
-                    إعادة تعيين البيانات (بدون إعادة تحميل)
+                    إعادة تعيين البيانات
                   </Button>
                   <Button variant="danger" onClick={() => setResetOpen(true)}>
                     مسح كل البيانات وإعادة التحميل
@@ -1057,9 +1057,9 @@ export default function AdminSettings() {
 
       <ConfirmDialog
         open={resetOpen}
-        title="استعادة البيانات التجريبية"
-        message="سيتم حذف كل التعديلات والطلبات والبيانات المحفوظة محليًا والعودة لبيانات البداية."
-        confirmLabel="استعادة"
+        title="إعادة تعيين بيانات المتجر"
+        message="سيتم حذف جميع البيانات المحفوظة (المنتجات والطلبات والعملاء والإعدادات) والعودة إلى حالة بداية نظيفة."
+        confirmLabel="إعادة تعيين"
         danger
         onCancel={() => setResetOpen(false)}
         onConfirm={resetAppData}

@@ -5,17 +5,17 @@ import { useAppData } from '@/store/AppDataContext'
 import { useToast } from '@/store/ToastContext'
 import { formatNumber, formatDateTime } from '@/lib/utils'
 import { AdminPage, Card, FieldRow, StatCard } from '@/components/admin/AdminUI'
-import { Avatar, Badge, Button, ProgressBar } from '@/components/ui'
+import { Avatar, Badge, Button } from '@/components/ui'
 import { Input, PasswordStrengthBar } from '@/components/ui/form'
 import { useNavigate } from 'react-router-dom'
 
 export default function AdminProfile() {
   const navigate = useNavigate()
-  const { adminUser, updateAdmin } = useAppData()
+  const { adminUser, updateAdmin, products } = useAppData()
   const { adminLogout } = useAuth()
   const { showToast } = useToast()
 
-  const [form, setForm] = useState({ name: adminUser.name, email: adminUser.email, phone: '0555555555' })
+  const [form, setForm] = useState({ name: adminUser.name, email: adminUser.email, phone: '' })
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
@@ -128,27 +128,16 @@ export default function AdminProfile() {
             </div>
           </Card>
 
-          <Card title="جلسات الأجهزة" subtitle="محاكاة لعرض تجريبي — لا يوجد مصادقة فعلية على الخادم">
+          <Card title="جلسات الأجهزة" subtitle="الأجهزة المسجّل الدخول منها">
             <ul className="space-y-2">
-              {[
-                { device: 'Chrome — Windows', place: 'الرياض، السعودية', current: true },
-                { device: 'Safari — iPhone', place: 'جدة، السعودية', current: false },
-                { device: 'Edge — Windows', place: 'الدمام، السعودية', current: false },
-              ].map((session) => (
-                <li key={session.device} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 px-3 py-2.5">
-                  <div>
-                    <p className="text-[12.5px] font-semibold text-gray-800">
-                      {session.device} {session.current && <Badge tone="success">الجلسة الحالية</Badge>}
-                    </p>
-                    <p className="text-[11px] text-gray-400">{session.place}</p>
-                  </div>
-                  {!session.current && (
-                    <Button size="xs" variant="ghost" className="text-danger" onClick={() => showToast('تم إنهاء الجلسة.', { type: 'success' })}>
-                      إنهاء الجلسة
-                    </Button>
-                  )}
-                </li>
-              ))}
+              <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 px-3 py-2.5">
+                <div>
+                  <p className="text-[12.5px] font-semibold text-gray-800">
+                    هذا الجهاز <Badge tone="success">الجلسة الحالية</Badge>
+                  </p>
+                  <p className="text-[11px] text-gray-400">جلسة إدارة نشطة الآن</p>
+                </div>
+              </li>
             </ul>
           </Card>
         </div>
@@ -163,12 +152,7 @@ export default function AdminProfile() {
 
           <Card title="نشاط سريع">
             <div className="space-y-3">
-              <StatCard label="المنتجات المُدارة" value={formatNumber(32)} />
-              <div>
-                <p className="mb-1 text-[12px] text-gray-500">إكمال إعدادات المتجر</p>
-                <ProgressBar value={78} />
-                <p className="mt-1 text-[11px] text-gray-400">٧٨٪ — أكمل بيانات الشحن والصفحات</p>
-              </div>
+              <StatCard label="المنتجات المُدارة" value={formatNumber(products.items.length)} />
             </div>
           </Card>
 
@@ -176,7 +160,7 @@ export default function AdminProfile() {
             <ul className="space-y-2 text-[12px] text-gray-600">
               <li className="flex items-center gap-2">✅ كلمة مرور قوية</li>
               <li className="flex items-center gap-2">⚠️ التحقق بخطوتين غير مفعّل</li>
-              <li className="flex items-center gap-2">✅ نسخ احتياطي محلي للبيانات التجريبية</li>
+              <li className="flex items-center gap-2">✅ حفظ آمن لبيانات المتجر</li>
             </ul>
             <Button className="mt-3" variant="outline" fullWidth onClick={() => navigate('/admin/settings/technical')}>
               إعدادات الأمان والبيانات

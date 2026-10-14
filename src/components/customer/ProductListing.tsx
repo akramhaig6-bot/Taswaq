@@ -83,7 +83,7 @@ export function ProductListing({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={`ابحث داخل ${title}...`}
-            className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-[13px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-[13px] outline-none focus:border-brand"
           />
         </div>
       )}
