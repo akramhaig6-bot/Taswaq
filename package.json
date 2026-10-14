@@ -1,0 +1,34 @@
+{
+  "name": "sawqli",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "سوقلي — واجهة متجر إلكتروني للأجهزة الإلكترونية والكهربائية (Frontend Only)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs",
+    "flows": "node scripts/flows.mjs",
+    "test": "npm run typecheck && npm run smoke && npm run flows"
+  },
+  "dependencies": {
+    "@fontsource-variable/cairo": "^5.3.0",
+    "lucide-react": "^1.57.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^30.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}
