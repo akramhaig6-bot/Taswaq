@@ -1,0 +1,344 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   سوقلي — نظام التصميم (Design tokens)
+   الألوان قابلة للتغيير من لوحة الإدارة (الإعدادات > العامة > الألوان)
+   ========================================================================== */
+
+:root {
+  --c-brand: #2563eb;
+  --c-brand-dark: #1d4ed8;
+  --c-brand-soft: #eff6ff;
+  --c-secondary: #7c3aed;
+  --c-success: #16a34a;
+  --c-danger: #dc2626;
+  --c-warning: #ea580c;
+  --c-gold: #f59e0b;
+  --c-ink: #0f172a;
+  --app-width: 480px;
+}
+
+@theme {
+  --font-sans: 'Cairo Variable', 'Cairo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    'Noto Naskh Arabic', 'Tahoma', sans-serif;
+
+  --color-brand: var(--c-brand);
+  --color-brand-dark: var(--c-brand-dark);
+  --color-brand-soft: var(--c-brand-soft);
+  --color-brand2: var(--c-secondary);
+  --color-success: var(--c-success);
+  --color-danger: var(--c-danger);
+  --color-warning: var(--c-warning);
+  --color-gold: var(--c-gold);
+  --color-ink: var(--c-ink);
+  --color-page: #f4f5f7;
+
+  --radius-app: 1.25rem;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-gray-200);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--color-page);
+    color: var(--color-gray-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  /* إخفاء أسهم حقول الأرقام */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  ::selection {
+    background: var(--c-brand);
+    color: #fff;
+  }
+}
+
+/* ============================ أدوات مساعدة ============================ */
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility app-width {
+  width: 100%;
+  max-width: var(--app-width);
+  margin-inline: auto;
+}
+
+@utility line-clamp-fix {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+
+/* ============================ الحركات ============================ */
+
+@keyframes sqFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sqFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes sqSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes sqSheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes sqSlideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+@keyframes sqPop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes sqHeart {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes sqShimmer {
+  100% {
+    transform: translateX(-100%);
+  }
+}
+@keyframes sqPulseSoft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.04);
+  }
+}
+@keyframes sqSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sqConfetti {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx, 0), 80vh, 0) rotate(720deg);
+  }
+}
+@keyframes sqBarGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-fade-in {
+  animation: sqFadeIn 0.25s ease-out both;
+}
+.animate-fade-out {
+  animation: sqFadeOut 0.25s ease-in both;
+}
+.animate-slide-up {
+  animation: sqSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-sheet-up {
+  animation: sqSheetUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-slide-down {
+  animation: sqSlideDown 0.25s ease-in both;
+}
+.animate-pop {
+  animation: sqPop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-heart {
+  animation: sqHeart 0.45s ease-out;
+}
+.animate-pulse-soft {
+  animation: sqPulseSoft 1.5s ease-in-out infinite;
+}
+.animate-bar-grow {
+  animation: sqBarGrow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: right;
+}
+.spinner {
+  animation: sqSpin 0.7s linear infinite;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-gray-200);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: sqShimmer 1.4s infinite;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  animation: sqConfetti 2.4s linear forwards;
+}
+
+/* حاوية التطبيق على الشاشات الكبيرة */
+.app-frame {
+  width: 100%;
+  max-width: var(--app-width);
+  margin-inline: auto;
+  background: #fff;
+  position: relative;
+}
+@media (min-width: 520px) {
+  .app-frame {
+    min-height: 100dvh;
+    box-shadow: 0 10px 60px rgba(15, 23, 42, 0.14);
+  }
+}
+
+/* شريط تمرير رقيق للوحة الإدارة */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* محتوى منسّق (وصف المنتج، الصفحات) */
+.rich-text {
+  line-height: 2;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rich-text strong,
+.rich-text b {
+  font-weight: 700;
+}
+.rich-text em,
+.rich-text i {
+  font-style: italic;
+}
+.rich-text ul {
+  list-style: disc;
+  padding-inline-start: 1.35rem;
+  margin-block: 0.5rem;
+}
+.rich-text li {
+  margin-block: 0.2rem;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  /* طباعة الفاتورة فقط */
+  body * {
+    visibility: hidden;
+  }
+  #invoice-print,
+  #invoice-print * {
+    visibility: visible;
+  }
+  #invoice-print {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    border: none !important;
+  }
+}
