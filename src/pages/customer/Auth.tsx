@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Info, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { isEmail, isPhone } from '@/lib/utils'
 import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
@@ -24,7 +24,6 @@ export default function Auth() {
   const [tab, setTab] = useState<Tab>('login')
   const [loading, setLoading] = useState(false)
   const [generalError, setGeneralError] = useState('')
-  const [showHint, setShowHint] = useState(true)
 
   /* تسجيل الدخول */
   const [loginForm, setLoginForm] = useState({ identifier: '', password: '' })
@@ -257,26 +256,6 @@ export default function Auth() {
             </Button>
           </form>
         )}
-
-        {showHint && tab === 'login' && (
-          <div className="mt-4 flex items-start gap-2 rounded-xl border border-brand/20 bg-brand-soft p-3">
-            <Info className="mt-0.5 size-4 shrink-0 text-brand" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-bold text-brand">بيانات تجريبية للدخول</p>
-              <p className="mt-0.5 text-[11.5px] leading-6 text-gray-600">
-                البريد: <span className="font-semibold">ahmed@example.com</span> — كلمة المرور:{' '}
-                <span className="font-semibold">123456</span>
-              </p>
-            </div>
-            <button type="button" onClick={() => setShowHint(false)} className="text-gray-400">
-              <X className="size-3.5" />
-            </button>
-          </div>
-        )}
-
-        <p className="mt-6 text-center text-[11.5px] text-gray-400">
-          هذه نسخة تجريبية للواجهة فقط — تُحفظ البيانات في متصفحك.
-        </p>
       </div>
     </Screen>
   )

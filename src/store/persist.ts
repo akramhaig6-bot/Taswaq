@@ -50,7 +50,7 @@ export function useCollection<T extends { id: string }>(key: string, initial: T[
   return { items, add, addMany, update, remove, find, set: setItems }
 }
 
-/** يعيد التطبيق لحالته الأولى (حذف كل البيانات التجريبية المحفوظة) */
+/** يعيد التطبيق لحالته الأولى (حذف كل البيانات المحفوظة محليًا) */
 export function resetAppData(): void {
   Object.keys(localStorage)
     .filter((key) => key.startsWith(PREFIX))

@@ -8,6 +8,60 @@
  */
 import { JSDOM } from 'jsdom'
 
+/* بيانات اختبار محلية لهذا الاختبار فقط — لا تُشحن مع التطبيق */
+const TEST_PRODUCT = {
+  id: 'p-1',
+  name: 'جوال سامسونج جالاكسي للاختبار',
+  sku: 'TEST-001',
+  description: 'منتج اختبار يُحقن عبر localStorage داخل هذا الاختبار فقط.',
+  images: ['data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>'],
+  price: 1000,
+  stock: 10,
+  trackStock: true,
+  lowStockThreshold: 2,
+  allowBackorder: false,
+  categoryIds: ['c-phones'],
+  brandId: 'b-samsung',
+  tags: ['جوال', 'سامسونج'],
+  options: [],
+  variants: [],
+  specifications: [],
+  relatedIds: [],
+  isNew: true,
+  isBestSeller: true,
+  status: 'published',
+  rating: 5,
+  reviewCount: 0,
+  sales: 0,
+  createdAt: new Date().toISOString(),
+}
+const TEST_CUSTOMER = {
+  id: 'u-1',
+  name: 'عميل اختبار',
+  email: 'test@example.com',
+  phone: '0550000000',
+  password: '123456',
+  addresses: [
+    {
+      id: 'a-test',
+      label: 'المنزل',
+      fullName: 'عميل اختبار',
+      phone: '0550000000',
+      city: 'الرياض',
+      district: 'حي الاختبار',
+      street: 'شارع الاختبار',
+      isDefault: true,
+    },
+  ],
+  savedCards: [],
+  blocked: false,
+  createdAt: new Date().toISOString(),
+}
+const testFixtures = () => ({
+  'sawqli.v1.products': JSON.stringify([TEST_PRODUCT]),
+  'sawqli.v1.customers': JSON.stringify([TEST_CUSTOMER]),
+})
+
 /* كتم تحذيرات act المتكررة من jsdom لتوضيح النتائج */
 const originalConsoleError = console.error
 console.error = (...args) => {
@@ -149,7 +203,7 @@ const record = (name, ok, detail = '') => {
 
 /* ------------------------ 2) إضافة منتج إلى السلة ------------------------ */
 {
-  const { window, server, act } = await boot('/product/p-1')
+  const { window, server, act } = await boot('/product/p-1', testFixtures())
   try {
     await act(async () => {
       await sleep(600)
@@ -196,6 +250,7 @@ const record = (name, ok, detail = '') => {
 /* --------------------------- 3) شاشة الدفع للعميل المسجّل --------------------------- */
 {
   const { window, server, act } = await boot('/checkout', {
+    ...testFixtures(),
     'sawqli.v1.session.customer': '"u-1"',
     'sawqli.v1.session.expiresAt': String(Date.now() + 3600000),
     'sawqli.v1.cart': JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
@@ -227,7 +282,7 @@ const record = (name, ok, detail = '') => {
 
 /* ------------------- 4) البحث متعدد الكلمات + إبراز النص ------------------- */
 {
-  const { window, server, act } = await boot('/search')
+  const { window, server, act } = await boot('/search', testFixtures())
   try {
     const input = window.document.querySelector(
       'input[placeholder*="ابحث"], input[placeholder*="ابحث عن"], input[type="search"]',
@@ -264,6 +319,7 @@ const record = (name, ok, detail = '') => {
 /* ------------- 5) تأكيد الإزالة عند خفض الكمية إلى صفر ------------- */
 {
   const { window, server, act } = await boot('/cart', {
+    ...testFixtures(),
     'sawqli.v1.session.customer': '"u-1"',
     'sawqli.v1.cart': JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
   })

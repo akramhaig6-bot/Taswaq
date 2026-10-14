@@ -216,7 +216,7 @@ export default function AdminReports() {
           <Button variant="outline" icon={<Download className="size-4" />} onClick={exportSales}>
             تصدير CSV
           </Button>
-          <Button variant="outline" icon={<FileSpreadsheet className="size-4" />} onClick={() => showToast('تصدير Excel تجريبي في هذه النسخة.', { type: 'info' })}>
+          <Button variant="outline" icon={<FileSpreadsheet className="size-4" />} onClick={() => showToast('استخدم زر تصدير CSV لتنزيل التقرير بصيغة جداول.', { type: 'info' })}>
             تصدير Excel
           </Button>
           <Button icon={<Printer className="size-4" />} onClick={() => window.print()}>

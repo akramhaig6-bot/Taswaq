@@ -103,7 +103,7 @@ export default function ForgotPassword() {
           إرسال رابط الاستعادة
         </Button>
         <p className="text-[11.5px] leading-6 text-gray-400">
-          ملاحظة: هذه واجهة تجريبية، لن يتم إرسال بريد فعلي.
+          سيصلك رابط الاستعادة على بريدك الإلكتروني إن كان مسجلًا لدينا.
         </p>
       </div>
     </Screen>

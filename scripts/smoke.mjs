@@ -19,6 +19,77 @@ console.error = (...args) => {
 }
 
 
+
+/* بيانات اختبار محلية لهذا الاختبار فقط — لا تُشحن مع التطبيق */
+const TEST_PRODUCT = {
+  id: 'p-1',
+  name: 'جوال سامسونج جالاكسي للاختبار',
+  sku: 'TEST-001',
+  description: 'منتج اختبار يُحقن عبر localStorage داخل هذا الاختبار فقط.',
+  images: ['data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>'],
+  price: 1000,
+  stock: 10,
+  trackStock: true,
+  lowStockThreshold: 2,
+  allowBackorder: false,
+  categoryIds: ['c-phones'],
+  brandId: 'b-samsung',
+  tags: ['جوال', 'سامسونج'],
+  options: [],
+  variants: [],
+  specifications: [],
+  relatedIds: [],
+  status: 'published',
+  rating: 5,
+  reviewCount: 0,
+  sales: 0,
+  createdAt: new Date().toISOString(),
+}
+const TEST_ADDRESS = {
+  id: 'a-test',
+  label: 'المنزل',
+  fullName: 'عميل اختبار',
+  phone: '0550000000',
+  city: 'الرياض',
+  district: 'حي الاختبار',
+  street: 'شارع الاختبار',
+  isDefault: true,
+}
+const TEST_CUSTOMER = {
+  id: 'u-1',
+  name: 'عميل اختبار',
+  email: 'test@example.com',
+  phone: '0550000000',
+  password: '123456',
+  addresses: [TEST_ADDRESS],
+  savedCards: [],
+  blocked: false,
+  createdAt: new Date().toISOString(),
+}
+const TEST_ORDER = {
+  id: 'o-1',
+  number: '100001',
+  customerId: 'u-1',
+  customerName: 'عميل اختبار',
+  customerEmail: 'test@example.com',
+  customerPhone: '0550000000',
+  items: [{ id: 'oi-1', productId: 'p-1', name: 'جوال سامسونج جالاكسي للاختبار', image: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>', price: 1000, quantity: 1 }],
+  address: TEST_ADDRESS,
+  paymentMethodId: 'pm-card',
+  paymentMethodName: 'بطاقة ائتمان أو مدى',
+  paymentStatus: 'paid',
+  shippingMethod: 'توصيل سريع',
+  subtotal: 1000,
+  discount: 0,
+  shipping: 0,
+  codFee: 0,
+  tax: 150,
+  total: 1150,
+  status: 'delivered',
+  createdAt: new Date().toISOString(),
+  timeline: [],
+}
+
 const routes = [
   '/',
   '/search',
@@ -148,6 +219,9 @@ let failures = 0
 
 for (const route of routes) {
   const seed = {
+    'sawqli.v1.products': JSON.stringify([TEST_PRODUCT]),
+    'sawqli.v1.customers': JSON.stringify([TEST_CUSTOMER]),
+    'sawqli.v1.orders': JSON.stringify([TEST_ORDER]),
     'sawqli.v1.session.expiresAt': String(Date.now() + 3600000),
     'sawqli.v1.cart': JSON.stringify([{ id: 'ci-smoke', productId: 'p-1', quantity: 1, options: {} }]),
   }

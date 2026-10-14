@@ -270,7 +270,7 @@ export function AdminShell() {
                 value={quickSearch}
                 onChange={(event) => setQuickSearch(event.target.value)}
                 placeholder="ابحث عن منتج، طلب، عميل..."
-                className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 ps-9 pe-3 text-[12.5px] outline-none focus:border-brand focus:bg-white"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-9 pe-3 text-[12.5px] outline-none focus:border-brand"
               />
               {searchResults && (
                 <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 max-h-80 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-lg">

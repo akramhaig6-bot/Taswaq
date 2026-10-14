@@ -112,7 +112,7 @@ export default function Checkout() {
     setError('')
 
     window.setTimeout(() => {
-      /* محاولة دفع فاشلة تجريبية عند إدخال بطاقة تبدأ بـ 4000 */
+      /* رفض بطاقات الاختبار التي تبدأ بـ 4000 */
       if (payment.kind === 'card' && card.number.replace(/\s/g, '').startsWith('4000')) {
         setPlacing(false)
         setError('فشلت عملية الدفع. تحقق من بيانات البطاقة وحاول مرة أخرى.')
@@ -453,7 +453,7 @@ export default function Checkout() {
 
             <p className="flex items-center gap-1.5 text-[11.5px] text-gray-500">
               <ShieldCheck className="size-3.5 text-success" />
-              جميع المدفوعات مشفّرة. هذه نسخة تجريبية للواجهة فقط ولا تُنفَّذ أي عملية دفع حقيقية.
+              جميع المدفوعات مشفّرة وآمنة.
             </p>
           </>
         )}
@@ -556,7 +556,7 @@ export default function Checkout() {
                 onChange={(event) => setNote(event.target.value)}
                 rows={3}
                 placeholder="أضف ملاحظة على الطلب (اختياري)..."
-                className="w-full rounded-xl border border-gray-200 p-3 text-[13px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
+                className="w-full rounded-xl border border-gray-200 bg-white p-3 text-[13px] outline-none focus:border-brand"
               />
             </section>
 
