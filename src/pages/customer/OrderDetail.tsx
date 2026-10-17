@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, Copy, Headphones, Package, RotateCcw, Star, X } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, Headphones, Package, RotateCcw, Star, X } from 'lucide-react'
 import type { Product } from '@/types'
 import { CANCEL_REASONS, paymentStatusLabel } from '@/lib/orders'
 import { cn, copyToClipboard, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
@@ -16,6 +16,16 @@ import { useAppData } from '@/store/AppDataContext'
 import { useService } from '@/store/ServiceContext'
 import { useCart } from '@/store/CartContext'
 import { useToast } from '@/store/ToastContext'
+
+function downloadDeliveryContent(title: string, content: string) {
+  const safeName = title.trim().replace(/[^a-zA-Z0-9\u0600-\u06ff-]+/g, '-').replace(/^-|-$/g, '') || 'delivery-content'
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${safeName}.txt`
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 export default function OrderDetail() {
   const { id = '' } = useParams()
@@ -147,23 +157,20 @@ export default function OrderDetail() {
           )}
         </section>
 
-        {/* معلومات الشحن */}
+        {/* معلومات التسليم */}
         <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
-          <h3 className="mb-2 text-[14px] font-extrabold text-gray-900">معلومات الشحن</h3>
+          <h3 className="mb-2 text-[14px] font-extrabold text-gray-900">{order.address ? 'معلومات الشحن' : 'معلومات التسليم'}</h3>
           <p className="text-[12.5px] leading-6 text-gray-600">
-            {order.address.fullName} — {order.address.phone}
-            <br />
-            {order.address.city}، {order.address.district}، {order.address.street}
-            {order.address.building ? `، مبنى ${order.address.building}` : ''}
+            {order.address ? <>{order.address.fullName} — {order.address.phone}<br />{order.address.city}، {order.address.district}، {order.address.street}{order.address.building ? `، مبنى ${order.address.building}` : ''}</> : 'تسليم رقمي أو تنفيذ خدمة؛ ستظهر التفاصيل ضمن متابعة الطلب.'}
           </p>
           <dl className="mt-3 space-y-1.5 border-t border-gray-100 pt-3 text-[12px]">
             <div className="flex justify-between">
-              <dt className="text-gray-500">طريقة الشحن</dt>
-              <dd className="font-semibold text-gray-800">{order.shippingMethod}</dd>
+              <dt className="text-gray-500">{order.address ? 'طريقة الشحن' : 'طريقة التسليم'}</dt>
+              <dd className="font-semibold text-gray-800">{order.shippingMethod ?? (order.address ? 'توصيل' : 'إلكتروني / خدمة')}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">التوصيل المتوقع</dt>
-              <dd className="font-semibold text-gray-800">{formatDate(order.expectedDelivery)}</dd>
+              <dt className="text-gray-500">{order.address ? 'التوصيل المتوقع' : 'موعد التنفيذ المتوقع'}</dt>
+              <dd className="font-semibold text-gray-800">{order.expectedDelivery ? formatDate(order.expectedDelivery) : 'سيتم التنسيق قريبًا'}</dd>
             </div>
             {order.shippingCompany && (
               <div className="flex justify-between">
@@ -196,29 +203,63 @@ export default function OrderDetail() {
         <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
           <h3 className="mb-3 text-[14px] font-extrabold text-gray-900">المنتجات ({order.items.length})</h3>
           <ul className="space-y-3">
-            {order.items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  onClick={() => navigate(`/product/${item.productId}`)}
-                  className="size-14 shrink-0 cursor-pointer rounded-xl border border-gray-100 object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <p
-                    onClick={() => navigate(`/product/${item.productId}`)}
-                    className="line-clamp-2 cursor-pointer text-[12.5px] font-semibold text-gray-800"
-                  >
-                    {item.name}
-                  </p>
-                  {item.optionsLabel && <p className="text-[11px] text-gray-500">{item.optionsLabel}</p>}
-                  <p className="text-[11.5px] text-gray-500">الكمية: {item.quantity}</p>
-                </div>
-                <span className="text-[12.5px] font-bold text-gray-900">
-                  {formatPrice(item.price * item.quantity, settings.currency)}
-                </span>
-              </li>
-            ))}
+            {order.items.map((item) => {
+              const content = item.deliveryInstructions?.trim()
+              const contentUrl = content && /^https?:\/\/\S+$/i.test(content) ? content : ''
+              const deliveryType = item.kind === 'digital' || item.kind === 'service'
+              return (
+                <li key={item.id} className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      onClick={() => navigate(`/product/${item.productId}`)}
+                      className="size-14 shrink-0 cursor-pointer rounded-xl border border-gray-100 object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        onClick={() => navigate(`/product/${item.productId}`)}
+                        className="line-clamp-2 cursor-pointer text-[12.5px] font-semibold text-gray-800"
+                      >
+                        {item.name}
+                      </p>
+                      {item.optionsLabel && <p className="text-[11px] text-gray-500">{item.optionsLabel}</p>}
+                      <p className="text-[11.5px] text-gray-500">الكمية: {item.quantity}</p>
+                    </div>
+                    <span className="text-[12.5px] font-bold text-gray-900">
+                      {formatPrice(item.price * item.quantity, settings.currency)}
+                    </span>
+                  </div>
+                  {deliveryType && (
+                    <div className="rounded-xl border border-brand/10 bg-brand-soft/40 p-3">
+                      <p className="text-[12px] font-bold text-brand">{item.kind === 'digital' ? 'المحتوى الرقمي' : 'تعليمات تنفيذ الخدمة'}</p>
+                      {order.paymentStatus !== 'paid' ? (
+                        <p className="mt-1 text-[11.5px] leading-5 text-gray-600">ستظهر تفاصيل التسليم بعد تأكيد الدفع.</p>
+                      ) : content ? (
+                        <>
+                          {contentUrl ? (
+                            <a href={contentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-brand underline">
+                              فتح المحتوى الرقمي <ExternalLink className="size-3.5" />
+                            </a>
+                          ) : (
+                            <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] leading-6 text-gray-700">{content}</p>
+                          )}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Button size="xs" variant="outline" icon={<Copy className="size-3.5" />} onClick={async () => {
+                              const copied = await copyToClipboard(content)
+                              showToast(copied ? 'تم نسخ تفاصيل التسليم.' : 'تعذّر النسخ.', { type: copied ? 'success' : 'error' })
+                            }}>نسخ المحتوى</Button>
+                            {!contentUrl && <Button size="xs" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => downloadDeliveryContent(item.name, content)}>تنزيل ملف نصي</Button>}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="mt-1 text-[11.5px] leading-5 text-gray-600">سيتم التنسيق معك لتسليم المحتوى أو استكمال الخدمة.</p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </section>
 

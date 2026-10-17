@@ -90,6 +90,39 @@ interface AppDataValue {
 /** مدة نافذة «عروض اليوم» بالمللي ثانية (26 ساعة) */
 const DEALS_WINDOW_MS = 26 * 3_600_000
 
+/** Merge newly introduced CMS settings into older locally saved data. */
+function mergeSettings(value: Partial<Settings> | null | undefined): Settings {
+  const saved = value ?? {}
+  return {
+    ...seedSettings,
+    ...saved,
+    colors: { ...seedSettings.colors, ...saved.colors },
+    contact: { ...seedSettings.contact, ...saved.contact },
+    tax: { ...seedSettings.tax, ...saved.tax },
+    shipping: {
+      ...seedSettings.shipping,
+      ...saved.shipping,
+      methods: saved.shipping?.methods ?? seedSettings.shipping.methods,
+    },
+    technical: { ...seedSettings.technical, ...saved.technical },
+    announcementBar: {
+      enabled: saved.announcementBar?.enabled ?? seedSettings.announcementBar?.enabled ?? false,
+      text: saved.announcementBar?.text ?? seedSettings.announcementBar?.text ?? '',
+      target: saved.announcementBar?.target ?? seedSettings.announcementBar?.target,
+      background: saved.announcementBar?.background ?? seedSettings.announcementBar?.background ?? '#7c3aed',
+      foreground: saved.announcementBar?.foreground ?? seedSettings.announcementBar?.foreground ?? '#ffffff',
+    },
+    navigationItems: saved.navigationItems ?? seedSettings.navigationItems,
+    footerLinks: saved.footerLinks ?? seedSettings.footerLinks,
+  }
+}
+
+function mergeMissingSeeds<T extends { id: string }>(current: T[], seeds: T[]): T[] {
+  const ids = new Set(current.map((item) => item.id))
+  const missing = seeds.filter((item) => !ids.has(item.id))
+  return missing.length ? [...missing, ...current] : current
+}
+
 const AppDataContext = createContext<AppDataValue | null>(null)
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -108,8 +141,34 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     TEXT_REGISTRY.map((entry) => ({ ...entry, id: entry.key })),
   )
 
-  const [settings, setSettings] = usePersistedState<Settings>('settings', seedSettings)
+  const [storedSettings, setSettings] = usePersistedState<Settings>('settings', seedSettings)
+  const settings = useMemo(() => mergeSettings(storedSettings), [storedSettings])
   const [adminUser, setAdminUser] = usePersistedState('admin', seedAdmin)
+
+  /* ترحيل البيانات المحلية القديمة مع الإبقاء على كل تعديلات صاحب المتجر. */
+  useEffect(() => {
+    if ((storedSettings.schemaVersion ?? 0) >= 3) return
+    categories.set((current) => mergeMissingSeeds(current, seedCategories))
+    brands.set((current) => mergeMissingSeeds(current, seedBrands))
+    products.set((current) => mergeMissingSeeds(current, seedProducts))
+    pages.set((current) => {
+      const merged = mergeMissingSeeds(current, seedPages)
+      return merged.map((page) => {
+        const seedPage = seedPages.find((seed) => seed.id === page.id)
+        return seedPage ? { ...seedPage, ...page, seoTitle: page.seoTitle ?? seedPage.seoTitle } : page
+      })
+    })
+    setSettings((previous) => {
+      const current = mergeSettings(previous)
+      const added = seedSettings.sections.filter((section) => !current.sections.some((item) => item.id === section.id))
+      const startOrder = current.sections.reduce((max, section) => Math.max(max, section.order), 0)
+      return mergeSettings({
+        ...current,
+        schemaVersion: 3,
+        sections: [...current.sections, ...added.map((section, index) => ({ ...section, order: startOrder + index + 1 }))],
+      })
+    })
+  }, [storedSettings.schemaVersion, categories.set, brands.set, products.set, pages.set, setSettings])
 
   /*
    * تدوير حملة «عروض اليوم»:
@@ -202,7 +261,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [reviews, pushNotification, recomputeRating],
   )
 
-  const updateSettings = useCallback((patch: Partial<Settings>) => setSettings((prev) => ({ ...prev, ...patch })), [setSettings])
+  const updateSettings = useCallback(
+    (patch: Partial<Settings>) => setSettings((prev) => mergeSettings({ ...mergeSettings(prev), ...patch })),
+    [setSettings],
+  )
 
   const updateAdmin = useCallback(
     (patch: Partial<{ name: string; email: string; password: string }>) => {

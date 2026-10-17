@@ -66,6 +66,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   reviews: 'التقييمات',
   coupons: 'كوبونات الخصم',
   banners: 'البانرات والعروض',
+  cms: 'مركز إدارة المحتوى',
   reports: 'التقارير والإحصائيات',
   notifications: 'الإشعارات',
   settings: 'الإعدادات',
@@ -107,6 +108,7 @@ export function AdminShell() {
     { to: '/admin/reviews', label: 'التقييمات', icon: Star },
     { to: '/admin/coupons', label: 'كوبونات الخصم', icon: Ticket },
     { to: '/admin/banners', label: 'البانرات والعروض', icon: ImageIcon },
+    { to: '/admin/cms', label: 'مركز إدارة المحتوى', icon: FileText },
     { to: '/admin/reports', label: 'التقارير والإحصائيات', icon: Grid2x2 },
     { to: '/admin/notifications', label: 'الإشعارات', icon: Bell, badge: adminNotifications.filter((item) => !item.read).length },
   ]

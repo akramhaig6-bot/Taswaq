@@ -100,6 +100,7 @@ export default function AdminOrderDetail() {
                     <p className="text-[11.5px] text-gray-500">
                       {formatPrice(item.price, settings.currency)} × {item.quantity}
                     </p>
+                    {item.deliveryInstructions && <p className="mt-1 whitespace-pre-wrap text-[11px] leading-5 text-brand">{item.deliveryInstructions}</p>}
                   </div>
                   <span className="text-[12.5px] font-bold text-gray-900">
                     {formatPrice(item.price * item.quantity, settings.currency)}
@@ -161,7 +162,7 @@ export default function AdminOrderDetail() {
               <p className="mb-3 text-[11.5px] text-gray-600">
                 العميل: {order.customerName} — {order.customerPhone}
                 <br />
-                العنوان: {order.address.city}، {order.address.district}، {order.address.street}
+                العنوان: {order.address ? `${order.address.city}، ${order.address.district}، ${order.address.street}` : 'تسليم رقمي / تنفيذ خدمة'}
               </p>
               <table className="w-full text-[11.5px]">
                 <thead>
@@ -242,14 +243,14 @@ export default function AdminOrderDetail() {
             <FieldRow label="الجوال" value={order.customerPhone} />
             <FieldRow label="البريد" value={order.customerEmail || '—'} />
             <FieldRow
-              label="العنوان"
-              value={`${order.address.city}، ${order.address.district}، ${order.address.street}`}
+              label={order.address ? 'العنوان' : 'طريقة التسليم'}
+              value={order.address ? `${order.address.city}، ${order.address.district}، ${order.address.street}` : 'تسليم رقمي / تنفيذ خدمة'}
             />
-            {order.address.building && <FieldRow label="المبنى" value={order.address.building} />}
-            {order.address.postalCode && <FieldRow label="الرمز البريدي" value={order.address.postalCode} />}
+            {order.address?.building && <FieldRow label="المبنى" value={order.address.building} />}
+            {order.address?.postalCode && <FieldRow label="الرمز البريدي" value={order.address.postalCode} />}
             <FieldRow label="حالة الدفع" value={<Badge tone={order.paymentStatus === 'paid' ? 'success' : 'warning'}>{paymentStatusLabel(order)}</Badge>} />
-            <FieldRow label="طريقة الشحن" value={order.shippingMethod} />
-            <FieldRow label="التوصيل المتوقع" value={order.expectedDelivery ? formatDate(order.expectedDelivery) : '—'} />
+            <FieldRow label={order.address ? 'طريقة الشحن' : 'طريقة التسليم'} value={order.shippingMethod ?? 'إلكتروني / خدمة'} />
+            <FieldRow label={order.address ? 'التوصيل المتوقع' : 'موعد التنفيذ المتوقع'} value={order.expectedDelivery ? formatDate(order.expectedDelivery) : '—'} />
             <FieldRow
               label="رقم التتبع"
               value={

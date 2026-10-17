@@ -1,8 +1,7 @@
 /**
- * اختبار تفاعلي مبسّط (jsdom + React) للتحقق من المسارات الحرجة:
- *  1) تسجيل دخول لوحة الإدارة → لوحة المعلومات
- *  2) إضافة منتج إلى السلة من صفحة المنتج
- *  3) الانتقال للسلة واستكمال خطوات الدفع حتى إنشاء الطلب
+ * اختبار تفاعلي (jsdom + React) للتحقق من المسارات والوظائف الحرجة:
+ * تسجيل الدخول، إضافة المنتجات، البحث، السلة والكوبونات، إنشاء الطلبات، مركز المحتوى،
+ * إعدادات الواجهة، والتسليم الرقمي دون عنوان أو رسوم شحن.
  *
  * التشغيل: node scripts/flows.mjs
  */
@@ -575,6 +574,146 @@ const record = (name, ok, detail = '') => {
   }
   /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
   await sleep(500)
+  await server.close()
+}
+
+/* ----------------- 10) إنشاء صفحة من مركز إدارة المحتوى ----------------- */
+{
+  const { window, server, act } = await boot('/admin/cms', {
+    [`sawqli.${STORAGE_VERSION}.session.admin`]: 'true',
+  })
+  try {
+    let pagesTab = findByText(window, 'الصفحات', 'button')
+    for (let attempt = 0; attempt < 8 && !pagesTab; attempt++) {
+      await act(async () => sleep(350))
+      pagesTab = findByText(window, 'الصفحات', 'button')
+    }
+    if (!pagesTab) throw new Error(`لم يتم العثور على تبويب الصفحات في مركز المحتوى: ${(window.document.body.textContent ?? '').slice(0, 220)}`)
+    await act(async () => click(window, pagesTab))
+    const addPage = findByText(window, 'صفحة جديدة', 'button')
+    if (!addPage) throw new Error('لم يتم العثور على زر إنشاء صفحة')
+    await act(async () => click(window, addPage))
+    await act(async () => sleep(150))
+
+    const controlByLabel = (tag, label) => {
+      const matchingLabel = Array.from(window.document.querySelectorAll('label')).find((node) => (node.textContent ?? '').includes(label))
+      return matchingLabel?.parentElement?.querySelector(tag) ?? null
+    }
+    const titleInput = controlByLabel('input', 'عنوان الصفحة')
+    const slugInput = controlByLabel('input', 'الرابط المختصر')
+    const contentInput = controlByLabel('textarea', 'محتوى الصفحة')
+    if (!titleInput || !slugInput || !contentInput) throw new Error('لم يتم العثور على حقول الصفحة')
+    await act(async () => {
+      setValue(window, titleInput, 'دليل المتجر')
+      setValue(window, slugInput, 'store-guide')
+      setValue(window, contentInput, 'معلومات مهمة للعملاء.')
+    })
+    const save = findByText(window, 'حفظ الصفحة', 'button')
+    if (!save) throw new Error('لم يتم العثور على زر حفظ الصفحة')
+    await act(async () => click(window, save))
+    await act(async () => sleep(300))
+    const pages = JSON.parse(window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.pages`) ?? '[]')
+    const created = pages.find((page) => page.slug === 'store-guide' && page.title === 'دليل المتجر')
+    record('إنشاء صفحة من مركز إدارة المحتوى', Boolean(created), created ? `تم حفظ الصفحة /pages/${created.slug}` : 'لم تحفظ الصفحة')
+  } catch (error) {
+    record('إنشاء صفحة من مركز إدارة المحتوى', false, String(error?.message ?? error))
+  }
+  await sleep(300)
+  await server.close()
+}
+
+/* ----------- 11) إتمام طلب منتج رقمي بلا عنوان أو رسوم شحن ----------- */
+{
+  const digitalProduct = {
+    ...TEST_PRODUCT,
+    id: 'p-digital-flow',
+    name: 'ملف رقمي للاختبار',
+    sku: 'DIGITAL-FLOW-01',
+    kind: 'digital',
+    requiresShipping: false,
+    deliveryInstructions: 'محتوى تسليم رقمي للاختبار.',
+    trackStock: false,
+    stock: 0,
+    price: 49,
+    categoryIds: ['c-digital'],
+  }
+  const { window, server, act } = await boot('/checkout', {
+    [`sawqli.${STORAGE_VERSION}.products`]: JSON.stringify([digitalProduct]),
+    [`sawqli.${STORAGE_VERSION}.customers`]: JSON.stringify([TEST_CUSTOMER]),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.session.expiresAt`]: String(Date.now() + 3600000),
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([{ id: 'ci-digital', productId: 'p-digital-flow', quantity: 1, options: {} }]),
+  })
+  try {
+    const text = window.document.body.textContent ?? ''
+    if (!text.includes('التسليم الرقمي أو تنفيذ الخدمة')) throw new Error('لم تظهر خطوات التسليم الرقمي')
+    const continueButton = findByText(window, 'متابعة إلى الدفع', 'button')
+    if (!continueButton) throw new Error('لم يتم العثور على زر الانتقال للدفع')
+    await act(async () => click(window, continueButton))
+    await act(async () => sleep(350))
+    const codButton = findByText(window, 'الدفع عند الاستلام', 'button')
+    if (codButton) throw new Error('ظهرت طريقة الدفع عند الاستلام لطلب رقمي')
+    const wallet = findByText(window, 'محفظة إلكترونية', 'button')
+    if (!wallet) throw new Error('لم تتوفر وسيلة دفع إلكترونية')
+    await act(async () => click(window, wallet))
+    await act(async () => sleep(200))
+    const review = findByText(window, 'متابعة إلى المراجعة', 'button')
+    if (!review) throw new Error('لم يظهر زر مراجعة الطلب')
+    await act(async () => click(window, review))
+    await act(async () => sleep(250))
+    const agree = Array.from(window.document.querySelectorAll('button[role="checkbox"]')).find((node) =>
+      (node.textContent ?? '').includes('أوافق على'),
+    )
+    if (!agree) throw new Error('لم يظهر تأكيد الشروط')
+    await act(async () => click(window, agree))
+    const confirm = findByText(window, 'تأكيد الطلب', 'button')
+    if (!confirm) throw new Error('لم يظهر زر تأكيد الطلب')
+    await act(async () => click(window, confirm))
+    for (let attempt = 0; attempt < 15 && !(window.document.body.textContent ?? '').includes('تم استلام طلبك'); attempt++) {
+      await act(async () => sleep(400))
+    }
+    const orders = JSON.parse(window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.orders`) ?? '[]')
+    const placed = orders.find((order) => order.items?.some((item) => item.productId === 'p-digital-flow'))
+    const contentSaved = placed?.items?.[0]?.deliveryInstructions === digitalProduct.deliveryInstructions
+    const orderWithoutShipping = window.location.pathname.startsWith('/order-success') && placed && !placed.address && placed.shipping === 0 && placed.codFee === 0
+    const trackButton = findByText(window, 'عرض تفاصيل الطلب', 'button') ?? findByText(window, 'تتبع الطلب', 'button')
+    if (!trackButton) throw new Error(`تم إنشاء الطلب لكن لم يظهر زر تفاصيل الطلب. المحتوى: ${(window.document.body.textContent ?? '').slice(-420)}`)
+    await act(async () => click(window, trackButton))
+    await act(async () => sleep(700))
+    const detailText = window.document.body.textContent ?? ''
+    const contentVisible = detailText.includes(digitalProduct.deliveryInstructions) && detailText.includes('تنزيل ملف نصي')
+    const ok = orderWithoutShipping && contentSaved && contentVisible
+    record('طلب منتج رقمي دون شحن', Boolean(ok), ok ? `الطلب ${placed.number} — بلا عنوان أو رسوم شحن مع تسليم المحتوى` : `المسار ${window.location.pathname} — طلب ${placed ? 'مُنشأ' : 'غير موجود'} — محتوى محفوظ ${contentSaved} — محتوى ظاهر ${contentVisible} — شحن ${placed?.shipping} — COD ${placed?.codFee} — عنوان ${Boolean(placed?.address)}`)
+  } catch (error) {
+    record('طلب منتج رقمي دون شحن', false, String(error?.message ?? error))
+  }
+  await sleep(300)
+  await server.close()
+}
+
+/* ----------- 12) إعدادات واجهة المتجر القابلة للتخصيص ----------- */
+{
+  const { window, server, act } = await boot('/', {
+    [`sawqli.${STORAGE_VERSION}.settings`]: JSON.stringify({
+      navigationItems: [{ id: 'nav-custom-flow', label: 'كتالوجي', path: '/search', icon: 'search', enabled: true }],
+      announcementBar: { enabled: true, text: 'رسالة المتجر', target: '/offers', background: '#123456', foreground: '#ffffff' },
+    }),
+  })
+  try {
+    const customNav = window.document.querySelector('a[href="/search"]')
+    const announcementVisible = (window.document.body.textContent ?? '').includes('رسالة المتجر')
+    if (!customNav || !(customNav.textContent ?? '').includes('كتالوجي') || !announcementVisible)
+      throw new Error('لم تُطبّق روابط التنقل أو شريط الإعلان من الإعدادات')
+    const dismiss = window.document.querySelector('button[aria-label="إغلاق الإعلان"]')
+    if (!dismiss) throw new Error('لم يظهر زر إغلاق الإعلان')
+    await act(async () => click(window, dismiss))
+    await act(async () => sleep(100))
+    const dismissed = !(window.document.body.textContent ?? '').includes('رسالة المتجر')
+    record('تخصيص التنقل والإعلان', dismissed, 'ظهر الرابط والإعلان، ثم اختفى الإعلان عند الإغلاق')
+  } catch (error) {
+    record('تخصيص التنقل والإعلان', false, String(error?.message ?? error))
+  }
+  await sleep(300)
   await server.close()
 }
 

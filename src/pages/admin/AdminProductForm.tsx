@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, Save, Trash2, X } from 'lucide-react'
-import type { OptionType, Product, ProductOption, ProductStatus, ProductVariant, Specification } from '@/types'
+import type { OptionType, Product, ProductKind, ProductOption, ProductStatus, ProductVariant, Specification } from '@/types'
 import { cn, dateInputValue, formatNumber, uid } from '@/lib/utils'
 import { AdminPage, Card, Toolbar } from '@/components/admin/AdminUI'
 import { Badge, Button, Chip } from '@/components/ui'
@@ -21,6 +21,8 @@ const OPTION_TYPES: Array<{ value: OptionType; label: string }> = [
 function emptyProduct(threshold: number): Product {
   return {
     id: uid('p'),
+    kind: 'physical',
+    requiresShipping: true,
     name: '',
     sku: `SWQ-${Math.floor(Math.random() * 9000 + 1000)}`,
     shortDescription: '',
@@ -99,6 +101,16 @@ export default function AdminProductForm() {
     setDirty(true)
   }
 
+  const updateKind = (kind: ProductKind) => {
+    setForm((prev) => ({
+      ...prev,
+      kind,
+      requiresShipping: kind === 'physical',
+      trackStock: kind === 'physical' ? prev.trackStock : false,
+    }))
+    setDirty(true)
+  }
+
   const rootCategories = categories.items.filter((category) => !category.parentId)
   const childCategories = categories.items.filter((category) => category.parentId)
 
@@ -113,6 +125,7 @@ export default function AdminProductForm() {
     if (!form.price || form.price <= 0) next.price = 'يرجى إدخال سعر صحيح.'
     if (form.categoryIds.length === 0) next.categoryIds = 'يرجى اختيار قسم واحد على الأقل.'
     if (form.images.length === 0) next.images = 'يرجى إضافة صورة واحدة على الأقل.'
+    if (form.kind === 'digital' && !form.deliveryInstructions?.trim()) next.deliveryInstructions = 'أدخل المحتوى أو تعليمات التسليم الرقمي.'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -221,6 +234,27 @@ export default function AdminProductForm() {
                   wrapperClassName="min-w-40"
                 />
               </Toolbar>
+              <Select
+                label="نوع المنتج أو العرض"
+                value={form.kind ?? 'physical'}
+                onChange={(event) => updateKind(event.target.value as ProductKind)}
+                options={[
+                  { value: 'physical', label: 'منتج مادي — مخزون وشحن' },
+                  { value: 'digital', label: 'منتج رقمي — تسليم إلكتروني' },
+                  { value: 'service', label: 'خدمة — حجز أو تنفيذ' },
+                ]}
+                hint="يحدد النوع طريقة التسليم ومتطلبات عنوان الشحن عند إتمام الطلب."
+              />
+              {(form.kind === 'digital' || form.kind === 'service') && (
+                <Textarea
+                  label={form.kind === 'digital' ? 'المحتوى الرقمي أو تعليمات التسليم' : 'تفاصيل تنفيذ الخدمة'}
+                  rows={5}
+                  value={form.deliveryInstructions ?? ''}
+                  error={errors.deliveryInstructions}
+                  onChange={(event) => set('deliveryInstructions', event.target.value)}
+                  hint={form.kind === 'digital' ? 'يُحفظ هذا المحتوى داخل الطلب ولا يظهر للعميل إلا بعد تأكيد الدفع.' : 'يمكن إضافة تعليمات أو معلومات تظهر للعميل ضمن تفاصيل طلبه.'}
+                />
+              )}
               <Textarea
                 label="الوصف المختصر"
                 rows={2}
@@ -282,8 +316,10 @@ export default function AdminProductForm() {
           <Card title="المخزون">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
-                label="الكمية المتوفرة"
+                label="الكمية / السعة المتوفرة"
                 type="number"
+                min={0}
+                disabled={!form.trackStock}
                 value={String(form.stock)}
                 onChange={(event) => set('stock', Number(event.target.value))}
               />
@@ -298,13 +334,19 @@ export default function AdminProductForm() {
               <Toggle
                 checked={form.trackStock}
                 onChange={(checked) => set('trackStock', checked)}
-                label="تتبع المخزون"
-                hint="عند إيقافه يبقى المنتج متاحًا دائمًا"
+                label={form.kind === 'service' ? 'تتبع السعة أو عدد الحجوزات' : form.kind === 'digital' ? 'تتبع عدد التراخيص المتاحة' : 'تتبع المخزون'}
+                hint="عند إيقافه يبقى العرض متاحًا دون حد للكمية."
               />
               <Toggle
                 checked={form.allowBackorder}
                 onChange={(checked) => set('allowBackorder', checked)}
                 label="السماح بالطلب عند نفاد المخزون"
+              />
+              <Toggle
+                checked={form.requiresShipping ?? (form.kind ?? 'physical') === 'physical'}
+                onChange={(checked) => set('requiresShipping', checked)}
+                label="يتطلب عنوانًا وتوصيلًا"
+                hint="فعّله للخدمات الميدانية أو المنتجات التي تحتاج عنوان استلام."
               />
             </div>
           </Card>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Heart, PackageSearch, ShoppingCart } from 'lucide-react'
+import { CalendarDays, Download, Heart, PackageSearch, ShoppingCart } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Product } from '@/types'
 import { cn, formatPrice, highlightParts } from '@/lib/utils'
@@ -100,6 +100,8 @@ export function ProductCard({
           <div className="flex flex-col gap-1">
             {hasDiscount && <DiscountBadge percent={percent} />}
             {product.isNew && <Badge tone="success">جديد</Badge>}
+            {product.kind === 'digital' && <Badge tone="brand">رقمي</Badge>}
+            {product.kind === 'service' && <Badge tone="warning">خدمة</Badge>}
             {outOfStock && <Badge tone="danger">{t('common.outOfStock', 'غير متوفر')}</Badge>}
           </div>
           <button
@@ -150,9 +152,9 @@ export function ProductCard({
             disabled={outOfStock}
             onClick={onAdd}
             className="mt-0.5 w-full"
-            icon={<ShoppingCart className="size-3.5" />}
+            icon={product.kind === 'digital' ? <Download className="size-3.5" /> : product.kind === 'service' ? <CalendarDays className="size-3.5" /> : <ShoppingCart className="size-3.5" />}
           >
-            {outOfStock ? t('common.outOfStock', 'غير متوفر') : t('common.add', 'أضف')}
+            {outOfStock ? t('common.outOfStock', 'غير متوفر') : product.kind === 'service' ? 'احجز' : product.kind === 'digital' ? 'أضف' : t('common.add', 'أضف')}
           </Button>
         </div>
       </div>

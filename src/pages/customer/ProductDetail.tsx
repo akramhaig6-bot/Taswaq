@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, PackageSearch, ShoppingCart, X } from 'lucide-react'
+import { CalendarDays, Check, Download, PackageSearch, ShoppingCart, X } from 'lucide-react'
 import type { Product, ProductOption } from '@/types'
 import { cn, formatNumber } from '@/lib/utils'
-import { discountPercent, isDiscountActive, isOutOfStock, unitPrice } from '@/lib/pricing'
+import { discountPercent, isDiscountActive, isOutOfStock, requiresShipping, unitPrice } from '@/lib/pricing'
 import { Screen } from '@/components/layout/Screen'
 import { ProductGallery } from '@/components/customer/Gallery'
 import { ReviewsSection } from '@/components/customer/Reviews'
@@ -175,8 +175,11 @@ export default function ProductDetail() {
     const threshold = product.lowStockThreshold || settings.lowStockThreshold
     if (product.trackStock && product.stock <= threshold)
       return <Badge tone="warning">بقي {formatNumber(product.stock)} فقط!</Badge>
-    return <Badge tone="success"><Check className="size-3" /> متوفر</Badge>
+    return <Badge tone="success"><Check className="size-3" /> {product.kind === 'service' ? 'متاح للحجز' : product.kind === 'digital' ? 'متاح للتسليم الرقمي' : 'متوفر'}</Badge>
   }
+
+  const kindIcon = product.kind === 'service' ? <CalendarDays className="size-4" /> : product.kind === 'digital' ? <Download className="size-4" /> : <ShoppingCart className="size-4" />
+  const primaryAction = product.kind === 'service' ? 'احجز الخدمة' : product.kind === 'digital' ? 'أضف إلى السلة' : 'أضف للسلة'
 
   return (
     <Screen
@@ -190,9 +193,9 @@ export default function ProductDetail() {
               disabled={outOfStock}
               loading={adding}
               onClick={onAddToCart}
-              icon={!adding && (added ? <Check className="size-4" /> : <ShoppingCart className="size-4" />)}
+              icon={!adding && (added ? <Check className="size-4" /> : kindIcon)}
             >
-              {outOfStock ? 'غير متوفر' : added ? 'تمت الإضافة' : 'أضف للسلة'}
+              {outOfStock ? 'غير متوفر' : added ? 'تمت الإضافة' : primaryAction}
             </Button>
             <Button
               size="lg"
@@ -202,7 +205,7 @@ export default function ProductDetail() {
               loading={buying}
               onClick={onBuyNow}
             >
-              اشترِ الآن
+              {product.kind === 'service' ? 'احجز الآن' : product.kind === 'digital' ? 'اشترِ الآن' : 'اشترِ الآن'}
             </Button>
           </div>
         </div>
@@ -222,6 +225,21 @@ export default function ProductDetail() {
             >
               {brand.name}
             </button>
+          )}
+          {product.kind && product.kind !== 'physical' && (
+            <div className="mt-2 rounded-xl border border-brand/10 bg-brand-soft/50 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-[12.5px] font-bold text-brand">
+                {product.kind === 'service' ? <CalendarDays className="size-4" /> : <Download className="size-4" />}
+                {product.kind === 'service' ? 'خدمة قابلة للحجز' : 'منتج رقمي'}
+              </div>
+              <p className="mt-1 text-[11.5px] leading-5 text-gray-600">
+                {product.kind === 'digital'
+                  ? 'يتم تسليم الوصول أو الملف الرقمي ضمن تفاصيل الطلب بعد إتمام الشراء.'
+                  : requiresShipping(product)
+                    ? 'يتطلب إدخال عنوان الخدمة، وسيتم تنسيق موعد التنفيذ بعد تأكيد الطلب.'
+                    : 'يتم تنسيق تفاصيل تنفيذ الخدمة عن بُعد ضمن متابعة الطلب.'}
+              </p>
+            </div>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <Rating

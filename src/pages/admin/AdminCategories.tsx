@@ -315,7 +315,7 @@ export default function AdminCategories() {
             <div>
               <p className="mb-1.5 text-[12.5px] font-semibold text-gray-700">أيقونة القسم</p>
               <div className="flex flex-wrap gap-2">
-                {GLYPH_KINDS.slice(0, 14).map((kind) => (
+                {GLYPH_KINDS.map((kind) => (
                   <button
                     key={kind}
                     type="button"

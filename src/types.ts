@@ -61,9 +61,17 @@ export interface Specification {
 }
 
 export type ProductStatus = 'published' | 'draft' | 'hidden'
+/** Nature of fulfilment for an online offer. */
+export type ProductKind = 'physical' | 'digital' | 'service'
 
 export interface Product {
   id: ID
+  /** Missing legacy values are treated as physical products. */
+  kind?: ProductKind
+  /** Content or instructions delivered with a digital item or service. */
+  deliveryInstructions?: string
+  /** Override default fulfilment (physical=true, digital/service=false). */
+  requiresShipping?: boolean
   name: string
   sku: string
   shortDescription?: string
@@ -170,6 +178,8 @@ export type OrderStatus = 'processing' | 'shipping' | 'delivered' | 'cancelled'
 export interface OrderItem {
   id: ID
   productId: ID
+  kind?: ProductKind
+  deliveryInstructions?: string
   name: string
   image: string
   price: number
@@ -192,11 +202,12 @@ export interface Order {
   customerEmail: string
   customerPhone: string
   items: OrderItem[]
-  address: Address
+  /** Digital-only orders do not need a delivery address. */
+  address?: Address
   paymentMethodId: string
   paymentMethodName: string
   paymentStatus: 'paid' | 'pending' | 'refunded'
-  shippingMethod: string
+  shippingMethod?: string
   subtotal: number
   discount: number
   couponCode?: string
@@ -295,6 +306,9 @@ export interface StaticPage {
   title: string
   content: string
   active: boolean
+  seoTitle?: string
+  seoDescription?: string
+  showInFooter?: boolean
 }
 
 /* ---------------------------- الإعدادات ---------------------------- */
@@ -331,7 +345,35 @@ export interface LanguageSetting {
   isDefault: boolean
 }
 
+export type StoreNavIcon = 'home' | 'categories' | 'offers' | 'orders' | 'account' | 'search' | 'custom'
+
+export interface StoreNavigationItem {
+  id: ID
+  label: string
+  path: string
+  icon: StoreNavIcon
+  enabled: boolean
+  requiresAuth?: boolean
+}
+
+export interface AnnouncementBarSettings {
+  enabled: boolean
+  text: string
+  target?: string
+  background: string
+  foreground: string
+}
+
+export interface FooterLink {
+  id: ID
+  label: string
+  path: string
+  enabled: boolean
+}
+
 export interface Settings {
+  /** Local data-seed schema migration marker. */
+  schemaVersion?: number
   storeName: string
   logoText: string
   /** شعار المتجر (صورة مرفوعة) — إن لم تُحدَّد يُعرض النص logoText */
@@ -368,6 +410,10 @@ export interface Settings {
   lowStockThreshold: number
   deals: { start: string; end: string; hideWhenExpired: boolean }
   sections: HomeSection[]
+  /** Editable storefront chrome managed through the CMS. */
+  announcementBar?: AnnouncementBarSettings
+  navigationItems?: StoreNavigationItem[]
+  footerLinks?: FooterLink[]
   technical: {
     maintenanceMode: boolean
     supportPhone: string
