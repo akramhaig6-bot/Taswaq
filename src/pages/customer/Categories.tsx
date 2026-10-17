@@ -37,11 +37,18 @@ export default function Categories() {
                 onClick={() => navigate(`/category/${category.id}`)}
                 className="flex w-full items-center gap-3 p-3 text-start transition-colors hover:bg-gray-50"
               >
-                <img
-                  src={category.image}
-                  alt={category.name}
-                  className="size-12 shrink-0 rounded-xl border border-gray-100 object-cover"
-                />
+                <span className="relative size-12 shrink-0">
+                  <img
+                    src={category.image}
+                    alt={category.name}
+                    className="size-12 rounded-xl border border-gray-100 object-cover"
+                  />
+                  {category.emoji ? (
+                    <span className="absolute -bottom-1.5 start-[-6px] flex size-6 items-center justify-center rounded-full border-2 border-white bg-white text-[12px] leading-none shadow-sm">
+                      {category.emoji}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-bold text-gray-800">{category.name}</span>
                   <span className="mt-0.5 block text-[11.5px] text-gray-500">
@@ -94,7 +101,14 @@ export function CategoryView() {
                   onClick={() => navigate(`/category/${child.id}/products`)}
                   className="flex w-full items-center gap-3 p-3 text-start transition-colors hover:bg-gray-50"
                 >
-                  <img src={child.image} alt={child.name} className="size-11 rounded-xl border border-gray-100 object-cover" />
+                  <span className="relative size-11 shrink-0">
+                    <img src={child.image} alt={child.name} className="size-11 rounded-xl border border-gray-100 object-cover" />
+                    {child.emoji ? (
+                      <span className="absolute -bottom-1.5 start-[-6px] flex size-5 items-center justify-center rounded-full border-2 border-white bg-white text-[11px] leading-none shadow-sm">
+                        {child.emoji}
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[13.5px] font-bold text-gray-800">{child.name}</span>
                     <span className="mt-0.5 block text-[11.5px] text-gray-500">
