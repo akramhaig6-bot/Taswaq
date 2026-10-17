@@ -128,8 +128,13 @@ export default function Home() {
                       onClick={() => navigate(`/category/${category.id}`)}
                       className="flex w-20 shrink-0 flex-col items-center gap-1.5"
                     >
-                      <span className="size-[68px] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
+                      <span className="relative block size-[68px] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
                         <img src={category.image} alt={category.name} className="size-full object-cover" />
+                        {category.emoji ? (
+                          <span className="absolute end-1 top-1 flex size-5 items-center justify-center rounded-full bg-white/85 text-[11px] leading-none">
+                            {category.emoji}
+                          </span>
+                        ) : null}
                       </span>
                       <span className="line-clamp-2 text-center text-[11.5px] font-semibold text-gray-700">
                         {category.name}

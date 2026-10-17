@@ -18,6 +18,7 @@ interface Draft {
   description: string
   image: string
   icon: string
+  emoji: string
   parentId: string | null
   active: boolean
 }
@@ -28,6 +29,7 @@ const blankDraft = (parentId: string | null = null): Draft => ({
   description: '',
   image: '',
   icon: 'phone',
+  emoji: '',
   parentId,
   active: true,
 })
@@ -63,6 +65,7 @@ export default function AdminCategories() {
       description: draft.description.trim() || undefined,
       image: draft.image || categoryImage(isGlyphKind(draft.icon) ? draft.icon : 'phone'),
       icon: draft.icon,
+      emoji: draft.emoji.trim() || undefined,
       parentId: draft.parentId,
       active: draft.active,
     }
@@ -156,6 +159,7 @@ export default function AdminCategories() {
           <img src={category.image} alt="" className="size-10 rounded-lg border border-gray-100 object-cover" />
           <div className="min-w-40 flex-1">
             <p className="text-[13px] font-bold text-gray-800">
+              {category.emoji ? <span className="ms-1">{category.emoji}</span> : null}
               {category.name}
               {!category.active && (
                 <Badge tone="gray" className="ms-2">
@@ -200,6 +204,7 @@ export default function AdminCategories() {
                   description: category.description ?? '',
                   image: category.image,
                   icon: category.icon ?? 'phone',
+                  emoji: category.emoji ?? '',
                   parentId: category.parentId,
                   active: category.active,
                 })
@@ -305,6 +310,12 @@ export default function AdminCategories() {
               label="الاسم بالإنجليزية (اختياري)"
               value={draft.nameEn}
               onChange={(event) => setDraft({ ...draft, nameEn: event.target.value })}
+            />
+            <Input
+              label="رمز تعبيري (إيموجي) — اختياري"
+              value={draft.emoji}
+              placeholder="مثال: 📱"
+              onChange={(event) => setDraft({ ...draft, emoji: event.target.value })}
             />
             <Textarea
               label="الوصف"

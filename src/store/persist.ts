@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
  * يُرفع عند تغيير بنية البيانات الأولية (seed) ليتم تحميل النسخة الأحدث
  * تلقائيًا بدل البقاء على بيانات قديمة محفوظة في المتصفح.
  */
-export const STORAGE_VERSION = 'v2'
+export const STORAGE_VERSION = 'v3'
 const PREFIX = `sawqli.${STORAGE_VERSION}.`
 
 export function storageKey(key: string): string {
