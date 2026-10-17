@@ -365,7 +365,7 @@ export function AdminShell() {
                 </button>
               )}
             >
-              <div className="max-h-80 w-72 overflow-y-auto">
+              <div className="max-h-80 w-[min(18rem,calc(100vw-3rem))] overflow-y-auto">
                 <p className="px-2.5 py-1.5 text-[12px] font-bold text-gray-700">الإشعارات</p>
                 {adminNotifications.length === 0 && (
                   <p className="px-2.5 py-3 text-center text-[12px] text-gray-400">لا توجد إشعارات</p>

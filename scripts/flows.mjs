@@ -7,6 +7,11 @@
  * التشغيل: node scripts/flows.mjs
  */
 import { JSDOM } from 'jsdom'
+import { readFileSync } from 'node:fs'
+
+/* نقرأ إصدار التخزين من المصدر نفسه حتى لا تنحرف مفاتيح الاختبارات عن التطبيق */
+const persistSource = readFileSync(new URL('../src/store/persist.ts', import.meta.url), 'utf8')
+const STORAGE_VERSION = persistSource.match(/STORAGE_VERSION\s*=\s*'([^']+)'/)?.[1] ?? 'v1'
 
 /* بيانات اختبار محلية لهذا الاختبار فقط — لا تُشحن مع التطبيق */
 const TEST_PRODUCT = {
@@ -58,8 +63,8 @@ const TEST_CUSTOMER = {
   createdAt: new Date().toISOString(),
 }
 const testFixtures = () => ({
-  'sawqli.v1.products': JSON.stringify([TEST_PRODUCT]),
-  'sawqli.v1.customers': JSON.stringify([TEST_CUSTOMER]),
+  [`sawqli.${STORAGE_VERSION}.products`]: JSON.stringify([TEST_PRODUCT]),
+  [`sawqli.${STORAGE_VERSION}.customers`]: JSON.stringify([TEST_CUSTOMER]),
 })
 
 /* كتم تحذيرات act المتكررة من jsdom لتوضيح النتائج */
@@ -198,6 +203,8 @@ const record = (name, ok, detail = '') => {
   } catch (error) {
     record('دخول لوحة الإدارة', false, String(error?.message ?? error))
   }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
   await server.close()
 }
 
@@ -235,7 +242,7 @@ const record = (name, ok, detail = '') => {
     await act(async () => {
       await sleep(1800)
     })
-    const cart = window.localStorage.getItem('sawqli.v1.cart') ?? ''
+    const cart = window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.cart`) ?? ''
     record(
       'إضافة منتج إلى السلة',
       cart.includes('p-1'),
@@ -244,6 +251,8 @@ const record = (name, ok, detail = '') => {
   } catch (error) {
     record('إضافة منتج إلى السلة', false, String(error?.message ?? error))
   }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
   await server.close()
 }
 
@@ -251,9 +260,9 @@ const record = (name, ok, detail = '') => {
 {
   const { window, server, act } = await boot('/checkout', {
     ...testFixtures(),
-    'sawqli.v1.session.customer': '"u-1"',
-    'sawqli.v1.session.expiresAt': String(Date.now() + 3600000),
-    'sawqli.v1.cart': JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.session.expiresAt`]: String(Date.now() + 3600000),
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
   })
   try {
     await act(async () => {
@@ -277,6 +286,8 @@ const record = (name, ok, detail = '') => {
   } catch (error) {
     record('فتح شاشة الدفع للعميل المسجّل', false, String(error?.message ?? error))
   }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
   await server.close()
 }
 
@@ -313,6 +324,8 @@ const record = (name, ok, detail = '') => {
   } catch (error) {
     record('البحث متعدد الكلمات + الإبراز', false, String(error?.message ?? error))
   }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
   await server.close()
 }
 
@@ -320,8 +333,8 @@ const record = (name, ok, detail = '') => {
 {
   const { window, server, act } = await boot('/cart', {
     ...testFixtures(),
-    'sawqli.v1.session.customer': '"u-1"',
-    'sawqli.v1.cart': JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([{ id: 'ci-1', productId: 'p-1', quantity: 1, options: {} }]),
   })
   try {
     const minus = window.document.querySelector('button[aria-label="تقليل الكمية"]')
@@ -341,6 +354,227 @@ const record = (name, ok, detail = '') => {
   } catch (error) {
     record('تأكيد الإزالة عند الكمية = 1', false, String(error?.message ?? error))
   }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
+  await server.close()
+}
+
+/* --------------- 6) كتالوج البيانات الأولية يُحمّل تلقائيًا --------------- */
+{
+  const { window, server, act } = await boot('/')
+  try {
+    await act(async () => {
+      await sleep(700)
+    })
+    const rawProducts = window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.products`)
+    const rawCustomers = window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.customers`)
+    const rawOrders = window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.orders`)
+    const products = JSON.parse(rawProducts ?? '[]')
+    const customers = JSON.parse(rawCustomers ?? '[]')
+    const orders = JSON.parse(rawOrders ?? '[]')
+    const text = window.document.body.textContent ?? ''
+    /* الشاشة الرئيسية تعرض أقسامًا فعلية من الكتالوج */
+    const showsCatalog = text.includes('تسوق حسب القسم')
+    record(
+      'تحميل الكتالوج الأولي',
+      products.length >= 40 && customers.length >= 5 && orders.length >= 10 && showsCatalog,
+      `${products.length} منتج — ${customers.length} عميل — ${orders.length} طلب`,
+    )
+  } catch (error) {
+    record('تحميل الكتالوج الأولي', false, String(error?.message ?? error))
+  }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
+  await server.close()
+}
+
+/* ------------- 7) تطبيق كود خصم صالح عبر طبقة الخدمات ------------- */
+{
+  const { window, server, act } = await boot('/cart', {
+    ...testFixtures(),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([
+      { id: 'ci-1', productId: 'p-1', quantity: 2, options: {} },
+    ]),
+    [`sawqli.${STORAGE_VERSION}.coupons`]: JSON.stringify([
+      {
+        id: 'cp-test',
+        code: 'SAWQLI10',
+        type: 'percent',
+        value: 10,
+        minOrder: 100,
+        usageLimit: 100,
+        usedCount: 0,
+        active: true,
+        audience: 'all',
+      },
+    ]),
+  })
+  try {
+    await act(async () => {
+      await sleep(600)
+    })
+    const input = Array.from(window.document.querySelectorAll('input')).find((node) =>
+      (node.getAttribute('placeholder') ?? '').includes('كود الخصم'),
+    )
+    if (!input) throw new Error('لم يتم العثور على حقل كود الخصم')
+    await act(async () => {
+      setValue(window, input, 'SAWQLI10')
+    })
+    const apply = findByText(window, 'تطبيق', 'button')
+    if (!apply) throw new Error('لم يتم العثور على زر تطبيق')
+    await act(async () => {
+      click(window, apply)
+    })
+    /* طبقة الخدمات تُحاكي زمن استجابة الشبكة قبل التحقق */
+    await act(async () => {
+      await sleep(1200)
+    })
+    const text = window.document.body.textContent ?? ''
+    const applied = text.includes('تم تطبيق كود الخصم')
+    record('تطبيق كود خصم صالح', applied, applied ? 'ظهر شريط الخصم المطبّق' : text.slice(0, 120))
+  } catch (error) {
+    record('تطبيق كود خصم صالح', false, String(error?.message ?? error))
+  }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
+  await server.close()
+}
+
+/* ------------- 8) رفض كود خصم غير صالح عبر طبقة الخدمات ------------- */
+{
+  const { window, server, act } = await boot('/cart', {
+    ...testFixtures(),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([
+      { id: 'ci-1', productId: 'p-1', quantity: 1, options: {} },
+    ]),
+  })
+  try {
+    await act(async () => {
+      await sleep(600)
+    })
+    const input = Array.from(window.document.querySelectorAll('input')).find((node) =>
+      (node.getAttribute('placeholder') ?? '').includes('كود الخصم'),
+    )
+    if (!input) throw new Error('لم يتم العثور على حقل كود الخصم')
+    await act(async () => {
+      setValue(window, input, 'NOT-A-CODE')
+    })
+    const apply = findByText(window, 'تطبيق', 'button')
+    if (!apply) throw new Error('لم يتم العثور على زر تطبيق')
+    await act(async () => {
+      click(window, apply)
+    })
+    await act(async () => {
+      await sleep(1200)
+    })
+    const text = window.document.body.textContent ?? ''
+    record('رفض كود خصم غير صالح', text.includes('كود الخصم غير صالح'), 'ظهرت رسالة الرفض')
+  } catch (error) {
+    record('رفض كود خصم غير صالح', false, String(error?.message ?? error))
+  }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
+  await server.close()
+}
+
+/* ------- 9) رحلة شراء كاملة: سلة → دفع → مراجعة → تأكيد الطلب ------- */
+{
+  const { window, server, act } = await boot('/checkout', {
+    ...testFixtures(),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.session.expiresAt`]: String(Date.now() + 3_600_000),
+    [`sawqli.${STORAGE_VERSION}.products`]: JSON.stringify([TEST_PRODUCT]),
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([
+      { id: 'ci-1', productId: 'p-1', quantity: 2, options: {} },
+    ]),
+  })
+  try {
+    await act(async () => {
+      await sleep(900)
+    })
+
+    const clickByText = async (label, wait = 500) => {
+      const node = Array.from(window.document.querySelectorAll('button')).find((item) =>
+        (item.textContent ?? '').trim().includes(label),
+      )
+      if (!node) throw new Error(`لم يتم العثور على زر «${label}»`)
+      if (node.disabled) throw new Error(`زر «${label}» معطّل`)
+      await act(async () => {
+        click(window, node)
+      })
+      await act(async () => {
+        await sleep(wait)
+      })
+      return node
+    }
+
+    /* الخطوة 1: العنوان (يُنتقى الافتراضي تلقائيًا) → الدفع */
+    await clickByText('متابعة إلى الدفع')
+
+    /* الخطوة 2: اختيار الدفع عند الاستلام لتجنّب حقول البطاقة */
+    const cod = Array.from(window.document.querySelectorAll('button')).find((node) =>
+      (node.textContent ?? '').includes('الدفع عند الاستلام'),
+    )
+    if (!cod) throw new Error('لم يتم العثور على طريقة «الدفع عند الاستلام»')
+    await act(async () => {
+      click(window, cod)
+    })
+    await act(async () => {
+      await sleep(400)
+    })
+    await clickByText('متابعة إلى المراجعة')
+
+    /* الخطوة 3: الموافقة على الشروط ثم التأكيد */
+    const agreeBox = Array.from(window.document.querySelectorAll('button[role="checkbox"]')).find((node) =>
+      (node.textContent ?? '').includes('أوافق على'),
+    )
+    if (!agreeBox) throw new Error('لم يتم العثور على مربع الموافقة على الشروط')
+    await act(async () => {
+      click(window, agreeBox)
+    })
+    await act(async () => {
+      await sleep(300)
+    })
+
+    await clickByText('تأكيد الطلب')
+
+    /* طبقة الخدمات تُحاكي زمن معالجة الدفع (700–1200ms) قبل إنشاء الطلب */
+    await act(async () => {
+      await sleep(2800)
+    })
+
+    const path = window.location.pathname
+    const orders = JSON.parse(window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.orders`) ?? '[]')
+    const stock = JSON.parse(window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.products`) ?? '[]')
+    /* أحدث طلب في النظام هو الذي أنشأناه للتو */
+    const placed = orders
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .find((order) => order.items.some((item) => item.productId === 'p-1'))
+    const remainingCart = JSON.parse(window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.cart`) ?? '[]')
+    const text = window.document.body.textContent ?? ''
+
+    const ok =
+      path.startsWith('/order-success') &&
+      Boolean(placed) &&
+      placed.total > 0 &&
+      stock[0]?.stock === TEST_PRODUCT.stock - 2 &&
+      remainingCart.length === 0
+
+    record(
+      'رحلة شراء كاملة حتى تأكيد الطلب',
+      ok,
+      ok
+        ? `الطلب ${placed.number} — الكمية 2 — الإجمالي ${placed.total} ر.س (شامل الضريبة ${placed.tax}) — المخزون ${stock[0].stock} بعد خصم 2 — السلة فارغة — ${text.includes('تم استلام طلبك') ? 'شاشة النجاح ظاهرة' : 'شاشة النجاح'}`
+        : `المسار ${path} — الطلب ${placed?.number ?? 'غير موجود'} — المخزون ${stock[0]?.stock} — السلة ${remainingCart.length}`,
+    )
+  } catch (error) {
+    record('رحلة شراء كاملة حتى تأكيد الطلب', false, String(error?.message ?? error))
+  }
+  /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
+  await sleep(500)
   await server.close()
 }
 

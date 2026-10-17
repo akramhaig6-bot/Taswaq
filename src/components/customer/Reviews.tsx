@@ -7,6 +7,7 @@ import { Input, Textarea } from '@/components/ui/form'
 import { Modal } from '@/components/ui/overlay'
 import { useAppData } from '@/store/AppDataContext'
 import { useAuth } from '@/store/AuthContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 export function RatingDistribution({ reviews }: { reviews: Review[] }) {
@@ -162,7 +163,7 @@ export function ReviewModal({
   product: Product
   existing?: Review
 }) {
-  const { addReview, reviews } = useAppData()
+  const service = useService()
   const { user } = useAuth()
   const { showToast } = useToast()
   const [rating, setRating] = useState(existing?.rating ?? 0)
@@ -174,33 +175,31 @@ export function ReviewModal({
 
   const dirty = rating !== (existing?.rating ?? 0) || title !== (existing?.title ?? '') || body !== (existing?.body ?? '')
 
-  const submit = () => {
+  const submit = async () => {
     if (rating === 0) {
       setError('يرجى اختيار تقييم بالنجوم.')
       return
     }
     setSubmitting(true)
-    window.setTimeout(() => {
-      if (existing) {
-        reviews.update(existing.id, { rating, title, body: body || undefined })
-        showToast('تم تحديث تقييمك بنجاح.', { type: 'success' })
-      } else {
-        addReview({
-          id: `r-${product.id}-${Date.now()}`,
-          productId: product.id,
-          customerId: user?.id,
-          userName: user?.name ?? 'عميل سوقلي',
-          rating,
-          title: title || undefined,
-          body: body || undefined,
-          createdAt: new Date().toISOString(),
-          status: 'published',
-        })
-        showToast('شكرًا! تم إرسال تقييمك بنجاح.', { type: 'success' })
-      }
-      setSubmitting(false)
-      onClose()
-    }, 700)
+    setError('')
+    const result = await service.submitReview({
+      productId: product.id,
+      customerId: user?.id,
+      userName: user?.name ?? 'عميل سوقلي',
+      rating,
+      title: title || undefined,
+      body: body || undefined,
+    })
+    setSubmitting(false)
+    if (!result.ok) {
+      setError(result.error ?? 'حدث خطأ أثناء إرسال التقييم. حاول مرة أخرى.')
+      return
+    }
+    showToast(
+      existing ? 'تم تحديث تقييمك بنجاح.' : 'شكرًا! تم إرسال تقييمك بنجاح.',
+      { type: 'success' },
+    )
+    onClose()
   }
 
   const attemptClose = () => {

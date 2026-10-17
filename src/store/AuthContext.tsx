@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Address, Customer, SavedCard } from '@/types'
-import { isEmail, isPhone, normalizePhone, uid } from '@/lib/utils'
+import { uid } from '@/lib/utils'
 import { useAppData } from '@/store/AppDataContext'
 import { usePersistedState } from '@/store/persist'
+import { useService } from '@/store/ServiceContext'
 
 interface AuthResult {
   ok: boolean
@@ -12,8 +13,13 @@ interface AuthResult {
 interface AuthValue {
   user: Customer | null
   isAuthenticated: boolean
-  login: (identifier: string, password: string) => AuthResult
-  register: (input: { name: string; email: string; phone: string; password: string }) => AuthResult
+  login: (identifier: string, password: string) => Promise<AuthResult>
+  register: (input: {
+    name: string
+    email: string
+    phone: string
+    password: string
+  }) => Promise<AuthResult>
   logout: () => void
   updateProfile: (patch: Partial<Customer>) => void
   deleteAccount: () => void
@@ -25,7 +31,7 @@ interface AuthValue {
   removeCard: (id: string) => void
   setDefaultCard: (id: string) => void
   isAdmin: boolean
-  adminLogin: (email: string, password: string) => AuthResult
+  adminLogin: (email: string, password: string) => Promise<AuthResult>
   adminLogout: () => void
   /** حالة انتهاء الجلسة (تظهر Modal في واجهة العميل) */
   sessionExpired: boolean
@@ -41,7 +47,8 @@ const SESSION_TTL_MS = 30 * 60 * 1000
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { customers, adminUser } = useAppData()
+  const { customers } = useAppData()
+  const service = useService()
   const [customerId, setCustomerId] = usePersistedState<string | null>('session.customer', null)
   const [isAdmin, setIsAdmin] = usePersistedState<boolean>('session.admin', false)
   const [expiresAt, setExpiresAt] = usePersistedState<number | null>('session.expiresAt', null)
@@ -61,45 +68,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const user = useMemo(() => customers.items.find((c) => c.id === customerId) ?? null, [customers.items, customerId])
 
   const login = useCallback<AuthValue['login']>(
-    (identifier, password) => {
-      const value = identifier.trim()
-      const customer = customers.items.find((c) => {
-        const emailMatch = isEmail(value) && c.email.toLowerCase() === value.toLowerCase()
-        const phoneMatch = isPhone(value) && normalizePhone(c.phone) === normalizePhone(value)
-        return emailMatch || phoneMatch
-      })
-      if (!customer || customer.password !== password) {
-        return { ok: false, error: 'البريد الإلكتروني/رقم الجوال أو كلمة المرور غير صحيحة.' }
+    async (identifier, password) => {
+      const result = await service.login(identifier, password)
+      if (!result.ok || !result.data) {
+        return { ok: false, error: result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.' }
       }
-      if (customer.blocked) return { ok: false, error: 'تم إيقاف هذا الحساب. يرجى التواصل مع خدمة العملاء.' }
-      setCustomerId(customer.id)
+      setCustomerId(result.data.id)
       setExpiresAt(Date.now() + SESSION_TTL_MS)
       return { ok: true }
     },
-    [customers.items, setCustomerId],
+    [service, setCustomerId],
   )
 
   const register = useCallback<AuthValue['register']>(
-    ({ name, email, phone, password }) => {
-      const exists = customers.items.some((c) => c.email.toLowerCase() === email.trim().toLowerCase())
-      if (exists) return { ok: false, error: 'هذا البريد الإلكتروني مسجل مسبقًا. يمكنك تسجيل الدخول.' }
-      const customer: Customer = {
-        id: uid('u'),
-        name: name.trim(),
-        email: email.trim(),
-        phone: normalizePhone(phone),
-        password,
-        addresses: [],
-        savedCards: [],
-        blocked: false,
-        createdAt: new Date().toISOString(),
+    async (input) => {
+      const result = await service.register(input)
+      if (!result.ok || !result.data) {
+        return { ok: false, error: result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.' }
       }
-      customers.add(customer)
-      setCustomerId(customer.id)
+      setCustomerId(result.data.id)
       setExpiresAt(Date.now() + SESSION_TTL_MS)
       return { ok: true }
     },
-    [customers, setCustomerId],
+    [service, setCustomerId],
   )
 
   const logout = useCallback(() => {
@@ -207,14 +198,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const adminLogin = useCallback<AuthValue['adminLogin']>(
-    (email, password) => {
-      if (email.trim().toLowerCase() !== adminUser.email.toLowerCase() || password !== adminUser.password) {
-        return { ok: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' }
+    async (email, password) => {
+      const result = await service.adminLogin(email, password)
+      if (!result.ok) {
+        return { ok: false, error: result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.' }
       }
       setIsAdmin(true)
       return { ok: true }
     },
-    [adminUser, setIsAdmin],
+    [service, setIsAdmin],
   )
 
   const adminLogout = useCallback(() => setIsAdmin(false), [setIsAdmin])

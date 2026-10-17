@@ -220,7 +220,7 @@ export function Dropdown({
       {open && (
         <div
           className={cn(
-            'absolute top-[calc(100%+6px)] z-50 min-w-44 overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-lg animate-fade-in',
+            'absolute top-[calc(100%+6px)] z-50 min-w-44 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-lg animate-fade-in',
             align === 'end' ? 'end-0' : 'start-0',
             className,
           )}

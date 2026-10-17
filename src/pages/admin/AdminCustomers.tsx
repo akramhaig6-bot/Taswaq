@@ -131,6 +131,54 @@ export default function AdminCustomers() {
           <DataTable<Customer>
             rows={list}
             emptyText="لا يوجد عملاء مطابقون للفلاتر الحالية."
+            renderCard={(customer) => (
+              <div className="space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <Avatar name={customer.name} src={customer.avatar} size={40} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-1.5 font-semibold text-gray-800">
+                      {customer.name}
+                      {customer.blocked && <Badge tone="danger">محظور</Badge>}
+                    </p>
+                    <p className="truncate text-[11.5px] text-gray-500">{customer.email || '—'}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {customer.phone} — {customer.addresses[0]?.city ?? 'بدون مدينة'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-gray-100 pt-2 text-[11.5px] text-gray-500">
+                  <span>{formatNumber(stats.get(customer.id)?.count ?? 0)} طلب</span>
+                  <span className="font-bold text-gray-900">
+                    {formatPrice(stats.get(customer.id)?.total ?? 0, settings.currency)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    icon={<Eye className="size-3.5" />}
+                    onClick={() => {
+                      setSelected(customer)
+                      setNoteDraft(customer.notes ?? '')
+                    }}
+                  >
+                    عرض
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    className={customer.blocked ? 'text-success' : 'text-danger'}
+                    icon={customer.blocked ? <CheckCircle2 className="size-3.5" /> : <Ban className="size-3.5" />}
+                    onClick={() => {
+                      customers.update(customer.id, { blocked: !customer.blocked })
+                      showToast(customer.blocked ? 'تم إلغاء حظر العميل.' : 'تم حظر العميل.', { type: 'success' })
+                    }}
+                  >
+                    {customer.blocked ? 'إلغاء الحظر' : 'حظر'}
+                  </Button>
+                </div>
+              </div>
+            )}
             columns={[
               {
                 key: 'name',

@@ -9,11 +9,13 @@ import { Button } from '@/components/ui/Button'
 import { Input, RadioGroup } from '@/components/ui/form'
 import { BottomSheet, Modal } from '@/components/ui/overlay'
 import { useAuth } from '@/store/AuthContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 export default function EditProfile() {
   const navigate = useNavigate()
-  const { user, updateProfile, deleteAccount } = useAuth()
+  const { user, deleteAccount } = useAuth()
+  const service = useService()
   const { showToast } = useToast()
 
   const [form, setForm] = useState({
@@ -30,6 +32,7 @@ export default function EditProfile() {
   const [deleteText, setDeleteText] = useState('')
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' })
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
 
   if (!user) {
     return (
@@ -46,31 +49,43 @@ export default function EditProfile() {
     form.birthday !== (user.birthday ?? '') ||
     form.gender !== (user.gender ?? 'undisclosed')
 
-  const save = () => {
+  const save = async () => {
     const next: Record<string, string> = {}
     if (form.name.trim().length < 3) next.name = 'الاسم يجب أن يكون 3 أحرف على الأقل.'
     if (!isEmail(form.email)) next.email = 'يرجى إدخال بريد إلكتروني صحيح.'
     if (!isPhone(form.phone)) next.phone = 'يرجى إدخال رقم جوال صحيح.'
     setErrors(next)
     if (Object.keys(next).length) return
-    updateProfile({
+    setSaving(true)
+    const result = await service.updateProfile(user.id, {
       name: form.name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim(),
       birthday: form.birthday || undefined,
       gender: form.gender,
     })
+    setSaving(false)
+    if (!result.ok) {
+      showToast(result.error ?? 'تعذّر حفظ التغييرات. حاول مرة أخرى.', { type: 'error' })
+      return
+    }
     showToast('تم حفظ التغييرات بنجاح.', { type: 'success' })
   }
 
-  const changePassword = () => {
+  const changePassword = async () => {
     const next: Record<string, string> = {}
     if (passwords.current !== user.password) next.current = 'كلمة المرور الحالية غير صحيحة.'
     if (passwords.next.length < 6) next.next = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.'
     if (passwords.next !== passwords.confirm) next.confirm = 'كلمتا المرور غير متطابقتين.'
     setPasswordErrors(next)
     if (Object.keys(next).length) return
-    updateProfile({ password: passwords.next })
+    setSaving(true)
+    const result = await service.updateProfile(user.id, { password: passwords.next })
+    setSaving(false)
+    if (!result.ok) {
+      showToast(result.error ?? 'تعذّر تحديث كلمة المرور. حاول مرة أخرى.', { type: 'error' })
+      return
+    }
     setPasswordOpen(false)
     setPasswords({ current: '', next: '', confirm: '' })
     showToast('تم تحديث كلمة المرور.', { type: 'success' })
@@ -79,7 +94,11 @@ export default function EditProfile() {
   const uploadAvatar = async (file?: File | null) => {
     if (!file) return
     const dataUrl = await readImageFile(file, 400)
-    updateProfile({ avatar: dataUrl })
+    const result = await service.updateProfile(user.id, { avatar: dataUrl })
+    if (!result.ok) {
+      showToast(result.error ?? 'تعذّر تحديث الصورة الشخصية.', { type: 'error' })
+      return
+    }
     setSheet(false)
     showToast('تم تحديث الصورة الشخصية.', { type: 'success' })
   }
@@ -90,7 +109,11 @@ export default function EditProfile() {
         <PageHeader
           title="تعديل الملف الشخصي"
           backTo="/account"
-          actions={dirty ? <Button size="sm" onClick={save}>حفظ</Button> : undefined}
+          actions={dirty ? (
+            <Button size="sm" loading={saving} onClick={save}>
+              حفظ
+            </Button>
+          ) : undefined}
         />
       }
     >
@@ -159,7 +182,7 @@ export default function EditProfile() {
           حذف الحساب
         </Button>
 
-        <Button variant="primary" fullWidth size="lg" disabled={!dirty} onClick={save}>
+        <Button variant="primary" fullWidth size="lg" loading={saving} disabled={!dirty} onClick={save}>
           حفظ التغييرات
         </Button>
       </div>
@@ -179,8 +202,12 @@ export default function EditProfile() {
           {user.avatar && (
             <button
               type="button"
-              onClick={() => {
-                updateProfile({ avatar: undefined })
+              onClick={async () => {
+                const result = await service.updateProfile(user.id, { avatar: undefined })
+                if (!result.ok) {
+                  showToast(result.error ?? 'تعذّر إزالة الصورة.', { type: 'error' })
+                  return
+                }
                 setSheet(false)
                 showToast('تم إزالة الصورة.', { type: 'info' })
               }}

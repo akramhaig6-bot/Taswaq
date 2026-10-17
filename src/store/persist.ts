@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const PREFIX = 'sawqli.v1.'
+/**
+ * إصدار مساحة التخزين المحلي.
+ * يُرفع عند تغيير بنية البيانات الأولية (seed) ليتم تحميل النسخة الأحدث
+ * تلقائيًا بدل البقاء على بيانات قديمة محفوظة في المتصفح.
+ */
+export const STORAGE_VERSION = 'v2'
+const PREFIX = `sawqli.${STORAGE_VERSION}.`
 
 export function storageKey(key: string): string {
   return `${PREFIX}${key}`

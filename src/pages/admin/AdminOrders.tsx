@@ -140,6 +140,40 @@ export default function AdminOrders() {
             rows={filtered}
             onRowClick={(order) => navigate(`/admin/orders/${order.id}`)}
             emptyText="لا توجد طلبات مطابقة للفلاتر الحالية."
+            renderCard={(order) => (
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-900">#{order.number}</p>
+                    <p className="truncate text-[11.5px] text-gray-500">
+                      {order.customerName} — {order.address.city}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{formatDate(order.createdAt)}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <StatusBadge status={order.status} />
+                    <span className="text-[12.5px] font-bold text-gray-900">
+                      {formatPrice(order.total, settings.currency)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-gray-100 pt-2">
+                  <span className="text-[11.5px] text-gray-500">{order.paymentMethodName}</span>
+                  <select
+                    value={order.status}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => updateOrderStatus(order, event.target.value as OrderStatus)}
+                    className="h-8 rounded-lg border border-gray-200 px-2 text-[11.5px]"
+                  >
+                    {ORDER_STATUS_TABS.filter((tab) => tab.value !== 'all').map((tab) => (
+                      <option key={tab.value} value={tab.value}>
+                        {tab.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
             columns={[
               {
                 key: 'number',

@@ -330,6 +330,24 @@ export default function Dashboard() {
             pageSize={5}
             rows={latestOrders}
             onRowClick={(order) => navigate(`/admin/orders/${order.id}`)}
+            renderCard={(order) => (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900">#{order.number}</p>
+                  <p className="truncate text-[12px] text-gray-600">{order.customerName}</p>
+                  <p className="text-[11px] text-gray-400">{relativeTime(order.createdAt)}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <StatusBadge status={order.status} />
+                  <span className="text-[12.5px] font-bold text-gray-900">
+                    {formatPrice(order.total, settings.currency)}
+                  </span>
+                  <Button size="xs" variant="ghost" onClick={() => navigate(`/admin/orders/${order.id}`)}>
+                    عرض
+                  </Button>
+                </div>
+              </div>
+            )}
             columns={[
               { key: 'number', header: 'رقم الطلب', render: (order) => <span className="font-bold">#{order.number}</span> },
               { key: 'customer', header: 'العميل', render: (order) => order.customerName },

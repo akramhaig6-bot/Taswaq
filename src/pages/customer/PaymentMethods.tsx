@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/form'
 import { ConfirmDialog, Modal } from '@/components/ui/overlay'
 import { useAuth } from '@/store/AuthContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 function detectBrand(number: string): SavedCard['brand'] {
@@ -20,16 +21,18 @@ function detectBrand(number: string): SavedCard['brand'] {
 }
 
 export default function PaymentMethods() {
-  const { user, addCard, removeCard, setDefaultCard } = useAuth()
+  const { user } = useAuth()
+  const service = useService()
   const { showToast } = useToast()
   const [open, setOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<SavedCard | null>(null)
   const [form, setForm] = useState({ number: '', holder: '', expiry: '', cvv: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
 
   const cards = user?.savedCards ?? []
 
-  const save = () => {
+  const save = async () => {
     const next: Record<string, string> = {}
     const digits = form.number.replace(/\s/g, '')
     if (digits.length !== 16) next.number = 'رقم البطاقة يجب أن يكون 16 رقمًا.'
@@ -38,12 +41,19 @@ export default function PaymentMethods() {
     if (form.cvv.length < 3) next.cvv = 'رمز CVV غير صحيح.'
     setErrors(next)
     if (Object.keys(next).length) return
-    addCard({
+    if (!user) return
+    setSaving(true)
+    const result = await service.saveCard(user.id, {
       brand: detectBrand(form.number),
       last4: digits.slice(-4),
       expiry: form.expiry,
       holder: form.holder.toUpperCase(),
     })
+    setSaving(false)
+    if (!result.ok) {
+      showToast(result.error ?? 'تعذّر حفظ البطاقة. حاول مرة أخرى.', { type: 'error' })
+      return
+    }
     setOpen(false)
     setForm({ number: '', holder: '', expiry: '', cvv: '' })
     showToast('تمت إضافة البطاقة.', { type: 'success' })
@@ -98,9 +108,11 @@ export default function PaymentMethods() {
               {!card.isDefault && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setDefaultCard(card.id)
-                    showToast('تم تعيين البطاقة الافتراضية.', { type: 'success' })
+                  onClick={async () => {
+                    if (!user) return
+                    const result = await service.setDefaultCard(user.id, card.id)
+                    if (result.ok) showToast('تم تعيين البطاقة الافتراضية.', { type: 'success' })
+                    else showToast(result.error ?? 'تعذّر تعيين البطاقة.', { type: 'error' })
                   }}
                   className="mt-2 text-[12px] font-bold text-brand hover:underline"
                 >
@@ -121,7 +133,7 @@ export default function PaymentMethods() {
         onClose={() => setOpen(false)}
         title="إضافة بطاقة جديدة"
         footer={
-          <Button fullWidth onClick={save}>
+          <Button fullWidth loading={saving} onClick={save}>
             حفظ البطاقة
           </Button>
         }
@@ -180,10 +192,12 @@ export default function PaymentMethods() {
         confirmLabel="حذف"
         danger
         onCancel={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) removeCard(pendingDelete.id)
+        onConfirm={async () => {
+          if (!pendingDelete || !user) return
+          const result = await service.removeCard(user.id, pendingDelete.id)
           setPendingDelete(null)
-          showToast('تم حذف البطاقة.', { type: 'info' })
+          if (result.ok) showToast('تم حذف البطاقة.', { type: 'info' })
+          else showToast(result.error ?? 'تعذّر حذف البطاقة.', { type: 'error' })
         }}
       />
     </Screen>

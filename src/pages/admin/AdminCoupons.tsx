@@ -160,6 +160,31 @@ export default function AdminCoupons() {
           <DataTable<Coupon>
             rows={list}
             emptyText="لا توجد كوبونات مطابقة."
+            renderCard={(coupon) => (
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-extrabold tracking-wide text-gray-900">{coupon.code}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {coupon.audience === 'all' ? 'كل العملاء' : coupon.audience === 'new' ? 'عملاء جدد' : 'قائمة محددة'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[13px] font-bold text-gray-900">
+                    {coupon.type === 'percent' ? `${formatNumber(coupon.value)}%` : formatPrice(coupon.value, settings.currency)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2 text-[11.5px] text-gray-500">
+                  <span>
+                    استُخدم {formatNumber(coupon.usedCount)}
+                    {coupon.usageLimit ? ` من ${formatNumber(coupon.usageLimit)}` : ''}
+                  </span>
+                  <span>
+                    {coupon.endDate ? `ينتهي ${formatDate(coupon.endDate)}` : 'بلا تاريخ انتهاء'}
+                  </span>
+                  <Badge tone={coupon.active ? 'success' : 'gray'}>{coupon.active ? 'مفعّل' : 'موقوف'}</Badge>
+                </div>
+              </div>
+            )}
             columns={[
               {
                 key: 'code',

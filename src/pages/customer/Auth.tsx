@@ -45,7 +45,7 @@ export default function Auth() {
     else navigate(-1)
   }
 
-  const submitLogin = () => {
+  const submitLogin = async () => {
     const next: Record<string, string> = {}
     if (!loginForm.identifier.trim()) next.identifier = 'يرجى إدخال البريد الإلكتروني أو رقم الجوال.'
     else if (!isEmail(loginForm.identifier) && !isPhone(loginForm.identifier))
@@ -56,19 +56,17 @@ export default function Auth() {
     if (Object.keys(next).length) return
 
     setLoading(true)
-    window.setTimeout(() => {
-      const result = login(loginForm.identifier, loginForm.password)
-      setLoading(false)
-      if (!result.ok) {
-        setGeneralError(result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.')
-        return
-      }
-      showToast('تم تسجيل الدخول بنجاح.', { type: 'success' })
-      goAfterAuth()
-    }, 700)
+    const result = await login(loginForm.identifier, loginForm.password)
+    setLoading(false)
+    if (!result.ok) {
+      setGeneralError(result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.')
+      return
+    }
+    showToast('تم تسجيل الدخول بنجاح.', { type: 'success' })
+    goAfterAuth()
   }
 
-  const submitRegister = () => {
+  const submitRegister = async () => {
     const next: Record<string, string> = {}
     if (!registerForm.name.trim()) next.name = 'يرجى إدخال الاسم.'
     else if (registerForm.name.trim().length < 3) next.name = 'الاسم يجب أن يكون 3 أحرف على الأقل.'
@@ -85,22 +83,20 @@ export default function Auth() {
     if (Object.keys(next).length) return
 
     setLoading(true)
-    window.setTimeout(() => {
-      const result = register({
-        name: registerForm.name,
-        email: registerForm.email,
-        phone: registerForm.phone,
-        password: registerForm.password,
-      })
-      setLoading(false)
-      if (!result.ok) {
-        if (result.error?.includes('مسجل')) setRegisterErrors((prev) => ({ ...prev, email: result.error! }))
-        else setGeneralError(result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.')
-        return
-      }
-      showToast(`تم إنشاء حسابك بنجاح! مرحبًا ${registerForm.name}.`, { type: 'success' })
-      goAfterAuth()
-    }, 800)
+    const result = await register({
+      name: registerForm.name,
+      email: registerForm.email,
+      phone: registerForm.phone,
+      password: registerForm.password,
+    })
+    setLoading(false)
+    if (!result.ok) {
+      if (result.error?.includes('مسجل')) setRegisterErrors((prev) => ({ ...prev, email: result.error! }))
+      else setGeneralError(result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.')
+      return
+    }
+    showToast(`تم إنشاء حسابك بنجاح! مرحبًا ${registerForm.name}.`, { type: 'success' })
+    goAfterAuth()
   }
 
   return (

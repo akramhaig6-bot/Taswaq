@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, CreditCard, Landmark, Wallet, Banknote, Plus, ShieldCheck } from 'lucide-react'
-import type { Address, Order } from '@/types'
-import { buildTimeline } from '@/lib/orders'
-import { cn, formatPrice, orderNumber } from '@/lib/utils'
-import { computeTotals, optionsLabel, unitPrice } from '@/lib/pricing'
+import type { Address } from '@/types'
+import { cn, formatPrice } from '@/lib/utils'
+import { computeTotals } from '@/lib/pricing'
 import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
 import { AddressCard, AddressFormModal } from '@/components/customer/AddressModals'
@@ -15,6 +14,7 @@ import { Badge } from '@/components/ui/display'
 import { useAppData } from '@/store/AppDataContext'
 import { useAuth } from '@/store/AuthContext'
 import { useCart } from '@/store/CartContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 const STEPS = [
@@ -46,8 +46,9 @@ function formatExpiry(value: string): string {
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { user, isAuthenticated, addAddress, updateAddress } = useAuth()
-  const { settings, products, orders, coupons, pushNotification } = useAppData()
+  const { user, isAuthenticated } = useAuth()
+  const { settings, products } = useAppData()
+  const service = useService()
   const { items, coupon, clearCart } = useCart()
   const { showToast } = useToast()
 
@@ -66,16 +67,21 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState('')
   const [leaveConfirm, setLeaveConfirm] = useState(false)
+  /**
+   * بعد إنشاء الطلب تُفرَّغ السلة عمدًا — لا يجوز أن يعيدنا حارس «السلة الفارغة»
+   * إلى صفحة السلة ويطمس شاشة تأكيد الطلب.
+   */
+  const [orderPlaced, setOrderPlaced] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/checkout' }, replace: true })
       return
     }
-    if (items.length === 0) {
+    if (items.length === 0 && !orderPlaced) {
       navigate('/cart', { replace: true })
     }
-  }, [isAuthenticated, items.length, navigate])
+  }, [isAuthenticated, items.length, navigate, orderPlaced])
 
   useEffect(() => {
     const defaultAddress = user?.addresses.find((address) => address.isDefault) ?? user?.addresses[0]
@@ -106,95 +112,38 @@ export default function Checkout() {
     else navigate('/cart')
   }
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (!agree || !address || !payment) return
     setPlacing(true)
     setError('')
 
-    window.setTimeout(() => {
-      /* رفض بطاقات الاختبار التي تبدأ بـ 4000 */
-      if (payment.kind === 'card' && card.number.replace(/\s/g, '').startsWith('4000')) {
-        setPlacing(false)
-        setError('فشلت عملية الدفع. تحقق من بيانات البطاقة وحاول مرة أخرى.')
-        return
+    const result = await service.placeOrder({
+      customerId: user?.id,
+      customerName: user?.name ?? address.fullName,
+      customerEmail: user?.email ?? '',
+      customerPhone: address.phone,
+      items,
+      address,
+      paymentMethodId: payment.id,
+      shippingMethodId: shippingMethod?.id ?? shippingId,
+      couponCode: coupon?.code,
+      note: note || undefined,
+      cardNumber: card.number,
+    })
+
+    setPlacing(false)
+    if (!result.ok || !result.data) {
+      setError(result.error ?? 'حدث خطأ أثناء إنشاء الطلب. يرجى المحاولة مرة أخرى.')
+      if (result.code === 'OUT_OF_STOCK') {
+        window.setTimeout(() => navigate('/cart'), 1400)
       }
+      return
+    }
 
-      const lineItems = items
-        .map((item) => {
-          const product = products.items.find((p) => p.id === item.productId)
-          if (!product) return null
-          return {
-            id: `oi-${item.id}`,
-            productId: product.id,
-            name: product.name,
-            image: product.images[0],
-            price: unitPrice(product, item.options),
-            quantity: item.quantity,
-            optionsLabel: optionsLabel(product, item.options) || undefined,
-          }
-        })
-        .filter(Boolean) as Order['items']
-
-      const order: Order = {
-        id: `o-${Date.now().toString(36)}`,
-        number: orderNumber(),
-        customerId: user?.id,
-        customerName: address.fullName,
-        customerEmail: user?.email ?? '',
-        customerPhone: address.phone,
-        items: lineItems,
-        address,
-        paymentMethodId: payment.id,
-        paymentMethodName: payment.name,
-        paymentStatus: payment.kind === 'cod' || payment.kind === 'bank' ? 'pending' : 'paid',
-        shippingMethod: shippingMethod?.name ?? 'توصيل',
-        subtotal: totals.subtotal,
-        discount: totals.discount,
-        couponCode: coupon?.code,
-        shipping: totals.shipping,
-        codFee: totals.codFee,
-        tax: totals.tax,
-        total: totals.total,
-        status: 'processing',
-        expectedDelivery: new Date(Date.now() + 3 * 86400000).toISOString(),
-        note: note || undefined,
-        createdAt: new Date().toISOString(),
-        timeline: buildTimeline('processing', new Date().toISOString()),
-      }
-
-      orders.add(order)
-
-      /* تحديث المخزون والمبيعات */
-      items.forEach((item) => {
-        const product = products.items.find((p) => p.id === item.productId)
-        if (product?.trackStock) {
-          products.update(product.id, {
-            stock: Math.max(0, product.stock - item.quantity),
-            sales: product.sales + item.quantity,
-          })
-        }
-      })
-
-      if (coupon) coupons.update(coupon.id, { usedCount: coupon.usedCount + 1 })
-
-      pushNotification({
-        type: 'order',
-        title: 'تم استلام طلبك',
-        body: `تم استلام طلبك رقم #${order.number} وسنبدأ بتجهيزه.`,
-        target: `/orders/${order.id}`,
-      })
-      pushNotification({
-        type: 'order',
-        title: 'طلب جديد',
-        body: `طلب جديد من ${order.customerName} بقيمة ${formatPrice(order.total, settings.currency)}.`,
-        forAdmin: true,
-        target: `/admin/orders/${order.id}`,
-      })
-
-      clearCart()
-      setPlacing(false)
-      navigate(`/order-success/${order.id}`, { replace: true })
-    }, 1200)
+    /* نُعلِم الحارس أن تفريغ السلة متعمّد قبل أن نفرّغها */
+    setOrderPlaced(true)
+    clearCart()
+    navigate(`/order-success/${result.data.id}`, { replace: true })
   }
 
   return (
@@ -573,12 +522,14 @@ export default function Checkout() {
         open={addressModal}
         onClose={() => setAddressModal(false)}
         address={editingAddress}
-        onSave={(value) => {
-          if (value.id) updateAddress(value.id, value)
-          else {
-            const created = addAddress({ ...value })
-            setAddressId(created.id)
+        onSave={async (value) => {
+          if (!user) return
+          const result = await service.saveAddress(user.id, value)
+          if (!result.ok) {
+            showToast(result.error ?? 'تعذّر حفظ العنوان. حاول مرة أخرى.', { type: 'error' })
+            throw new Error(result.error)
           }
+          setAddressId(result.data!.id)
           showToast('تم حفظ العنوان بنجاح.', { type: 'success' })
         }}
       />
