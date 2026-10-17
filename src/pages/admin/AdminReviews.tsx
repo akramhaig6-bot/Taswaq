@@ -114,6 +114,87 @@ export default function AdminReviews() {
           <DataTable<Review>
             rows={list}
             emptyText="لا توجد مراجعات مطابقة."
+            renderCard={(review) => (
+              <div className="space-y-2">
+                <div className="flex items-start gap-2.5">
+                  {getProduct(review.productId)?.images[0] && (
+                    <img
+                      src={getProduct(review.productId)?.images[0]}
+                      alt=""
+                      className="size-11 shrink-0 rounded-lg border border-gray-100 object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-[12px] font-semibold text-gray-700">
+                      {getProduct(review.productId)?.name ?? 'منتج محذوف'}
+                    </p>
+                    <p className="text-[11.5px] text-gray-500">{review.userName}</p>
+                    <p className="text-[11px] text-gray-400">{formatDateTime(review.createdAt)}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Rating value={review.rating} size={12} />
+                    {review.status === 'published' ? (
+                      <Badge tone="success">منشورة</Badge>
+                    ) : review.status === 'pending' ? (
+                      <Badge tone="warning">معلّقة</Badge>
+                    ) : (
+                      <Badge tone="gray">مخفية</Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[12px] text-gray-600">
+                  {review.title && <p className="font-bold text-gray-800">{review.title}</p>}
+                  {review.body && <p className="mt-0.5 line-clamp-3">{review.body}</p>}
+                </div>
+                {review.reply && (
+                  <p className="rounded-lg bg-brand-soft px-2 py-1 text-[11px] text-gray-600">
+                    ردّ المتجر: {review.reply}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-1 border-t border-gray-100 pt-2">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    icon={<MessageSquareReply className="size-3.5" />}
+                    onClick={() => {
+                      setReplyFor(review)
+                      setReplyText(review.reply ?? '')
+                    }}
+                  >
+                    رد
+                  </Button>
+                  {review.status === 'hidden' ? (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="text-success"
+                      icon={<Eye className="size-3.5" />}
+                      onClick={() => setStatusFor(review, 'published')}
+                    >
+                      نشر
+                    </Button>
+                  ) : (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon={<EyeOff className="size-3.5" />}
+                      onClick={() => setStatusFor(review, 'hidden')}
+                    >
+                      إخفاء
+                    </Button>
+                  )}
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    className="text-danger"
+                    icon={<Trash2 className="size-3.5" />}
+                    onClick={() => setPendingDelete(review)}
+                  >
+                    حذف
+                  </Button>
+                </div>
+              </div>
+            )}
             columns={[
               {
                 key: 'product',

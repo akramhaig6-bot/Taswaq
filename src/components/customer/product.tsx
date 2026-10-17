@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Heart, PackageSearch, ShoppingCart } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { Product } from '@/types'
 import { cn, formatPrice, highlightParts } from '@/lib/utils'
 import { discountPercent, isDiscountActive, isOutOfStock } from '@/lib/pricing'
@@ -37,7 +37,11 @@ export function ProductCard({
   const [pulse, setPulse] = useState(false)
   const isFav = wishlist.has(product.id)
 
-  const openProduct = () => navigate(`/product/${product.id}`)
+  const openProduct = (event?: React.MouseEvent) => {
+    /* الروابط والأزرار الداخلية تتولى أمرها بنفسها — لا نكرّر التنقل */
+    if (event && (event.target as HTMLElement | null)?.closest('a,button')) return
+    navigate(`/product/${product.id}`)
+  }
 
   const onAdd = (event: React.MouseEvent) => {
     event.stopPropagation()
@@ -79,16 +83,19 @@ export function ProductCard({
       onClick={openProduct}
       className={cn(
         'group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all',
-        'hover:border-gray-200 hover:shadow-sm active:scale-[.99]',
+        'hover:border-gray-200 hover:shadow-sm',
       )}
     >
+      {/* المنطقة القابلة للنقر رابط حقيقي: يعمل بالماوس ولوحة المفاتيح ويفتح في تبويب جديد */}
       <div className="relative aspect-square w-full overflow-hidden bg-gray-50">
-        <img
-          src={product.images[0]}
-          alt={product.name}
-          loading="lazy"
-          className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
+        <Link to={`/product/${product.id}`} className="block size-full" tabIndex={-1} aria-hidden="true">
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        </Link>
         <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1">
           <div className="flex flex-col gap-1">
             {hasDiscount && <DiscountBadge percent={percent} />}
@@ -111,17 +118,19 @@ export function ProductCard({
 
       <div className="flex flex-1 flex-col gap-1.5 p-2.5">
         <h3 className="line-clamp-2 min-h-9 text-[13px] font-semibold leading-[18px] text-gray-800">
-          {highlight
-            ? highlightParts(product.name, highlight).map((part, index) =>
-                part.match ? (
-                  <strong key={index} className="font-extrabold text-gray-900">
-                    {part.text}
-                  </strong>
-                ) : (
-                  <span key={index}>{part.text}</span>
-                ),
-              )
-            : product.name}
+          <Link to={`/product/${product.id}`} className="cursor-pointer hover:text-brand">
+            {highlight
+              ? highlightParts(product.name, highlight).map((part, index) =>
+                  part.match ? (
+                    <strong key={index} className="font-extrabold text-gray-900">
+                      {part.text}
+                    </strong>
+                  ) : (
+                    <span key={index}>{part.text}</span>
+                  ),
+                )
+              : product.name}
+          </Link>
         </h3>
         {!compact && product.reviewCount > 0 && <Rating value={product.rating} count={product.reviewCount} size={12} />}
         <div className="mt-auto flex flex-col gap-1">

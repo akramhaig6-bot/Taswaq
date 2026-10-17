@@ -13,18 +13,21 @@ import { EmptyState, PriceTag, StatusBadge } from '@/components/ui/display'
 import { Modal } from '@/components/ui/overlay'
 import { Select } from '@/components/ui/form'
 import { useAppData } from '@/store/AppDataContext'
+import { useService } from '@/store/ServiceContext'
 import { useCart } from '@/store/CartContext'
 import { useToast } from '@/store/ToastContext'
 
 export default function OrderDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { orders, settings, products, pushNotification } = useAppData()
+  const { orders, settings, products } = useAppData()
+  const service = useService()
   const { addToCart } = useCart()
   const { showToast } = useToast()
 
   const order = orders.items.find((item) => item.id === id)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState(CANCEL_REASONS[0])
   const [rateOpen, setRateOpen] = useState(false)
   const [reviewProduct, setReviewProduct] = useState<Product | null>(null)
@@ -38,21 +41,14 @@ export default function OrderDetail() {
     )
   }
 
-  const cancelOrder = () => {
-    orders.update(order.id, {
-      status: 'cancelled',
-      cancelReason: reason,
-      timeline: [
-        { key: 'received', label: 'تم استلام الطلب', at: order.createdAt, done: true },
-        { key: 'cancelled', label: 'تم إلغاء الطلب', at: new Date().toISOString(), done: true },
-      ],
-    })
-    pushNotification({
-      type: 'order',
-      title: 'تم إلغاء طلبك',
-      body: `تم إلغاء الطلب #${order.number}. سبب الإلغاء: ${reason}`,
-      target: `/orders/${order.id}`,
-    })
+  const cancelOrder = async () => {
+    setCancelling(true)
+    const result = await service.cancelOrder(order.id, reason)
+    setCancelling(false)
+    if (!result.ok) {
+      showToast(result.error ?? 'تعذّر إلغاء الطلب. حاول مرة أخرى.', { type: 'error' })
+      return
+    }
     setCancelOpen(false)
     showToast('تم إلغاء طلبك بنجاح.', { type: 'success' })
   }
@@ -288,7 +284,7 @@ export default function OrderDetail() {
         size="sm"
         footer={
           <div className="flex gap-2">
-            <Button variant="danger" fullWidth onClick={cancelOrder}>
+            <Button variant="danger" fullWidth loading={cancelling} onClick={cancelOrder}>
               تأكيد الإلغاء
             </Button>
             <Button variant="ghost" fullWidth onClick={() => setCancelOpen(false)}>

@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/display'
 import { ConfirmDialog } from '@/components/ui/overlay'
 import { useAuth } from '@/store/AuthContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 export default function Addresses() {
-  const { user, addAddress, updateAddress, removeAddress, setDefaultAddress } = useAuth()
+  const { user } = useAuth()
+  const service = useService()
   const { showToast } = useToast()
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -51,9 +53,11 @@ export default function Addresses() {
                 setModalOpen(true)
               }}
               onDelete={() => setPendingDelete(address)}
-              onSetDefault={() => {
-                setDefaultAddress(address.id)
-                showToast('تم تعيين العنوان الافتراضي.', { type: 'success' })
+              onSetDefault={async () => {
+                if (!user) return
+                const result = await service.setDefaultAddress(user.id, address.id)
+                if (result.ok) showToast('تم تعيين العنوان الافتراضي.', { type: 'success' })
+                else showToast(result.error ?? 'تعذّر تعيين العنوان.', { type: 'error' })
               }}
             />
           ))
@@ -79,9 +83,13 @@ export default function Addresses() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         address={editing}
-        onSave={(value) => {
-          if (value.id) updateAddress(value.id, value)
-          else addAddress({ ...value })
+        onSave={async (value) => {
+          if (!user) return
+          const result = await service.saveAddress(user.id, value)
+          if (!result.ok) {
+            showToast(result.error ?? 'تعذّر حفظ العنوان. حاول مرة أخرى.', { type: 'error' })
+            throw new Error(result.error)
+          }
           showToast('تم حفظ العنوان بنجاح.', { type: 'success' })
         }}
       />
@@ -93,10 +101,12 @@ export default function Addresses() {
         confirmLabel="حذف"
         danger
         onCancel={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) removeAddress(pendingDelete.id)
+        onConfirm={async () => {
+          if (!pendingDelete || !user) return
+          const result = await service.removeAddress(user.id, pendingDelete.id)
           setPendingDelete(null)
-          showToast('تم حذف العنوان.', { type: 'info' })
+          if (result.ok) showToast('تم حذف العنوان.', { type: 'info' })
+          else showToast(result.error ?? 'تعذّر حذف العنوان.', { type: 'error' })
         }}
       />
     </Screen>

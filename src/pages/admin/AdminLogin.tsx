@@ -23,7 +23,7 @@ export default function AdminLogin() {
     if (isAdmin) navigate('/admin/dashboard', { replace: true })
   }, [isAdmin, navigate])
 
-  const submit = () => {
+  const submit = async () => {
     const next: Record<string, string> = {}
     if (!email.trim()) next.email = 'يرجى إدخال البريد الإلكتروني.'
     else if (!isEmail(email)) next.email = 'يرجى إدخال بريد إلكتروني صحيح.'
@@ -33,15 +33,13 @@ export default function AdminLogin() {
     if (Object.keys(next).length) return
 
     setLoading(true)
-    window.setTimeout(() => {
-      const result = adminLogin(email, password)
-      setLoading(false)
-      if (!result.ok) {
-        setGeneralError(result.error ?? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.')
-        return
-      }
-      navigate('/admin/dashboard', { replace: true })
-    }, 800)
+    const result = await adminLogin(email, password)
+    setLoading(false)
+    if (!result.ok) {
+      setGeneralError(result.error ?? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.')
+      return
+    }
+    navigate('/admin/dashboard', { replace: true })
   }
 
   return (

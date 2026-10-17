@@ -113,11 +113,12 @@ export function AddressFormModal({
   open: boolean
   onClose: () => void
   address?: Address | null
-  onSave: (value: Omit<Address, 'id'> & { id?: string }) => void
+  onSave: (value: Omit<Address, 'id'> & { id?: string }) => void | Promise<void>
 }) {
   const { settings } = useAppData()
   const [form, setForm] = useState({ ...emptyAddress })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -142,7 +143,7 @@ export function AddressFormModal({
 
   const set = (key: keyof typeof form, value: string | boolean) => setForm((prev) => ({ ...prev, [key]: value }))
 
-  const submit = () => {
+  const submit = async () => {
     const next: Record<string, string> = {}
     if (!form.label.trim()) next.label = 'يرجى إدخال اسم العنوان.'
     if (!form.fullName.trim()) next.fullName = 'يرجى إدخال اسم المستلم.'
@@ -153,8 +154,13 @@ export function AddressFormModal({
     if (!form.street.trim()) next.street = 'يرجى إدخال تفاصيل العنوان.'
     setErrors(next)
     if (Object.keys(next).length) return
-    onSave({ ...form, id: address?.id })
-    onClose()
+    setSaving(true)
+    try {
+      await onSave({ ...form, id: address?.id })
+      onClose()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -164,7 +170,7 @@ export function AddressFormModal({
       title={address ? 'تعديل العنوان' : 'إضافة عنوان جديد'}
       size="lg"
       footer={
-        <Button fullWidth size="lg" onClick={submit}>
+        <Button fullWidth size="lg" loading={saving} onClick={submit}>
           حفظ العنوان
         </Button>
       }

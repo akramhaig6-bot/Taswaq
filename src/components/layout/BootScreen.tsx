@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type KeyboardEvent } from 'react'
+import { storageKey } from '@/store/persist'
 
-const SPLASH_SEEN_KEY = 'sawqli.v1.splash-seen'
+const SPLASH_SEEN_KEY = storageKey('splash-seen')
 const FIRST_RUN_DURATION = 7000
 const RETURNING_DURATION = 3000
 const SKIP_AFTER = 3000

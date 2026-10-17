@@ -162,6 +162,8 @@ export function Checkbox({
     <div className={className}>
       <button
         type="button"
+        role="checkbox"
+        aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className="flex w-full items-start gap-2.5 text-start disabled:opacity-50"

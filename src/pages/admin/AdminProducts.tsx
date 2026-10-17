@@ -254,6 +254,46 @@ export default function AdminProducts() {
             rows={filtered}
             selectable
             emptyText="لا توجد منتجات مطابقة للفلاتر الحالية."
+            renderCard={(product) => (
+              <div className="flex items-start gap-3">
+                <img
+                  src={product.images[0]}
+                  alt=""
+                  className="size-14 shrink-0 rounded-xl border border-gray-100 object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-[12.5px] font-semibold text-gray-800">{product.name}</p>
+                  <p className="text-[11px] text-gray-400">{product.sku}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {product.status === 'published' ? (
+                      <Badge tone="success">متاح</Badge>
+                    ) : product.status === 'draft' ? (
+                      <Badge tone="gray">مسودة</Badge>
+                    ) : (
+                      <Badge tone="warning">مخفي</Badge>
+                    )}
+                    {isOutOfStock(product) ? (
+                      <Badge tone="danger">نفذ</Badge>
+                    ) : product.trackStock && product.stock <= product.lowStockThreshold ? (
+                      <Badge tone="warning">متبقٍ {formatNumber(product.stock)}</Badge>
+                    ) : null}
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[12.5px] font-bold text-gray-900">
+                      {formatPrice(product.price, settings.currency)}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button size="xs" variant="ghost" onClick={() => navigate(`/admin/products/${product.id}/edit`)}>
+                        تعديل
+                      </Button>
+                      <Button size="xs" variant="ghost" onClick={() => duplicate(product)}>
+                        نسخ
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             bulkActions={(ids, clear) => (
               <>
                 <Button

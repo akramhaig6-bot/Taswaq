@@ -11,6 +11,7 @@ import { EmptyState, PriceTag, QuantityStepper } from '@/components/ui/display'
 import { ConfirmDialog } from '@/components/ui/overlay'
 import { useAppData } from '@/store/AppDataContext'
 import { useCart } from '@/store/CartContext'
+import { useService } from '@/store/ServiceContext'
 import { useLang } from '@/store/LanguageContext'
 import { useToast } from '@/store/ToastContext'
 import { useAuth } from '@/store/AuthContext'
@@ -19,9 +20,10 @@ export default function Cart() {
   const navigate = useNavigate()
   const { t } = useLang()
   const { settings, products } = useAppData()
+  const service = useService()
   const { items, count, totals, updateQuantity, removeItem, restoreItem, applyCoupon, removeCoupon, coupon, itemOptionsLabel, itemUnitPrice, maxQuantity } = useCart()
   const { showToast } = useToast()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
 
   const [code, setCode] = useState('')
   const [codeError, setCodeError] = useState('')
@@ -48,23 +50,26 @@ export default function Cart() {
 
   const hasUnavailable = lines.some((line) => !line.product || line.product.status !== 'published' || isOutOfStock(line.product))
 
-  const onApplyCoupon = () => {
+  const onApplyCoupon = async () => {
     if (!code.trim()) {
       setCodeError('يرجى إدخال كود الخصم.')
       return
     }
     setApplying(true)
-    window.setTimeout(() => {
-      const result = applyCoupon(code)
-      setApplying(false)
-      if (result.valid) {
-        setCodeError('')
-        setCode('')
-        showToast('تم تطبيق كود الخصم بنجاح.', { type: 'success' })
-      } else {
-        setCodeError(result.message ?? 'كود الخصم غير صالح أو منتهي الصلاحية.')
-      }
-    }, 600)
+    const result = await service.validateCoupon(code, totals.subtotal, user?.id)
+    setApplying(false)
+    if (!result.ok) {
+      setCodeError(result.error ?? 'كود الخصم غير صالح أو منتهي الصلاحية.')
+      return
+    }
+    const applied = applyCoupon(result.data!.code)
+    if (applied.valid) {
+      setCodeError('')
+      setCode('')
+      showToast('تم تطبيق كود الخصم بنجاح.', { type: 'success' })
+    } else {
+      setCodeError(applied.message ?? 'كود الخصم غير صالح أو منتهي الصلاحية.')
+    }
   }
 
   const summary = (

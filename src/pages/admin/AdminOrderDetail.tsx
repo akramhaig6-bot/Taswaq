@@ -9,12 +9,14 @@ import { Badge, Button, EmptyState, StatusBadge } from '@/components/ui'
 import { Input, Select, Textarea } from '@/components/ui/form'
 import { Modal } from '@/components/ui/overlay'
 import { useAppData } from '@/store/AppDataContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 export default function AdminOrderDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { orders, settings, pushNotification } = useAppData()
+  const service = useService()
   const { showToast } = useToast()
 
   const order = orders.items.find((item) => item.id === id)
@@ -25,6 +27,7 @@ export default function AdminOrderDetail() {
   const [cancelOpen, setCancelOpen] = useState(false)
   const [refundOpen, setRefundOpen] = useState(false)
   const [reason, setReason] = useState(CANCEL_REASONS[0])
+  const [statusSaving, setStatusSaving] = useState(false)
 
   if (!order) {
     return (
@@ -44,14 +47,14 @@ export default function AdminOrderDetail() {
     showToast('تم حفظ الملاحظة الداخلية.', { type: 'success' })
   }
 
-  const changeStatus = (status: OrderStatus) => {
-    orders.update(order.id, { status })
-    pushNotification({
-      type: 'order',
-      title: 'تحديث حالة الطلب',
-      body: `تم تحديث حالة الطلب #${order.number} إلى ${ORDER_STATUS_TABS.find((tab) => tab.value === status)?.label}.`,
-      target: `/orders/${order.id}`,
-    })
+  const changeStatus = async (status: OrderStatus) => {
+    setStatusSaving(true)
+    const result = await service.updateOrderStatus(order.id, status)
+    setStatusSaving(false)
+    if (!result.ok) {
+      showToast(result.error ?? 'تعذّر تحديث حالة الطلب. حاول مرة أخرى.', { type: 'error' })
+      return
+    }
     showToast('تم تحديث حالة الطلب.', { type: 'success' })
   }
 
@@ -198,6 +201,8 @@ export default function AdminOrderDetail() {
               <Select
                 label="حالة الطلب"
                 value={order.status}
+                disabled={statusSaving}
+                hint={statusSaving ? 'جارٍ حفظ الحالة...' : undefined}
                 onChange={(event) => changeStatus(event.target.value as OrderStatus)}
                 options={ORDER_STATUS_TABS.filter((tab) => tab.value !== 'all').map((tab) => ({ value: tab.value, label: tab.label }))}
               />

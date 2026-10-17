@@ -9,6 +9,11 @@
  * قديمة لا علاقة له بالتطبيق) — لا يؤثر على النتيجة.
  */
 import { JSDOM } from 'jsdom'
+import { readFileSync } from 'node:fs'
+
+/* نقرأ إصدار التخزين من المصدر نفسه حتى لا تنحرف مفاتيح الاختبارات عن التطبيق */
+const persistSource = readFileSync(new URL('../src/store/persist.ts', import.meta.url), 'utf8')
+const STORAGE_VERSION = persistSource.match(/STORAGE_VERSION\s*=\s*'([^']+)'/)?.[1] ?? 'v1'
 
 /* كتم تحذيرات act المتكررة من jsdom لتوضيح النتائج */
 const originalConsoleError = console.error
@@ -219,15 +224,15 @@ let failures = 0
 
 for (const route of routes) {
   const seed = {
-    'sawqli.v1.products': JSON.stringify([TEST_PRODUCT]),
-    'sawqli.v1.customers': JSON.stringify([TEST_CUSTOMER]),
-    'sawqli.v1.orders': JSON.stringify([TEST_ORDER]),
-    'sawqli.v1.session.expiresAt': String(Date.now() + 3600000),
-    'sawqli.v1.cart': JSON.stringify([{ id: 'ci-smoke', productId: 'p-1', quantity: 1, options: {} }]),
+    [`sawqli.${STORAGE_VERSION}.products`]: JSON.stringify([TEST_PRODUCT]),
+    [`sawqli.${STORAGE_VERSION}.customers`]: JSON.stringify([TEST_CUSTOMER]),
+    [`sawqli.${STORAGE_VERSION}.orders`]: JSON.stringify([TEST_ORDER]),
+    [`sawqli.${STORAGE_VERSION}.session.expiresAt`]: String(Date.now() + 3600000),
+    [`sawqli.${STORAGE_VERSION}.cart`]: JSON.stringify([{ id: 'ci-smoke', productId: 'p-1', quantity: 1, options: {} }]),
   }
   if (route !== '/admin') {
-    seed['sawqli.v1.session.customer'] = '"u-1"'
-    seed['sawqli.v1.session.admin'] = 'true'
+    seed[`sawqli.${STORAGE_VERSION}.session.customer`] = '"u-1"'
+    seed[`sawqli.${STORAGE_VERSION}.session.admin`] = 'true'
   }
 
   const window = setupDom(route, seed)

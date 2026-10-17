@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type Dispatch,
@@ -86,6 +87,9 @@ interface AppDataValue {
   resetAll: () => void
 }
 
+/** مدة نافذة «عروض اليوم» بالمللي ثانية (26 ساعة) */
+const DEALS_WINDOW_MS = 26 * 3_600_000
+
 const AppDataContext = createContext<AppDataValue | null>(null)
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -106,6 +110,27 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const [settings, setSettings] = usePersistedState<Settings>('settings', seedSettings)
   const [adminUser, setAdminUser] = usePersistedState('admin', seedAdmin)
+
+  /*
+   * تدوير حملة «عروض اليوم»:
+   * مثل أي متجر حقيقي، تنتهي نافذة العروض وتبدأ نافذة جديدة تلقائيًا،
+   * فلا تبقى الشاشة الرئيسية على حملة منتهية إلى الأبد.
+   */
+  useEffect(() => {
+    const end = new Date(settings.deals.end).getTime()
+    if (!Number.isFinite(end) || end > Date.now()) return
+    const now = Date.now()
+    setSettings((prev) => ({
+      ...prev,
+      deals: {
+        ...prev.deals,
+        start: new Date(now - 3 * 86_400_000).toISOString(),
+        end: new Date(now + DEALS_WINDOW_MS).toISOString(),
+      },
+    }))
+    /* نعتمد على القيمة الحالية فقط عند انتهاء النافذة — لا نعيد الجدولة أثناءها */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.deals.end])
 
   /* ---------------------------- مساعدات ---------------------------- */
   const getProduct = useCallback((id?: string) => (id ? products.items.find((p) => p.id === id) : undefined), [products.items])

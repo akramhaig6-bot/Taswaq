@@ -135,6 +135,7 @@ export function DataTable<T extends { id: string }>({
   bulkActions,
   pageSize: initialPageSize = 10,
   emptyText = 'لا توجد بيانات لعرضها.',
+  renderCard,
 }: {
   columns: Array<Column<T>>
   rows: T[]
@@ -143,6 +144,8 @@ export function DataTable<T extends { id: string }>({
   bulkActions?: (selectedIds: string[], clear: () => void) => ReactNode
   pageSize?: number
   emptyText?: string
+  /** عرض البطاقات على الشاشات الصغيرة (الجوال) بدل الجدول */
+  renderCard?: (row: T) => ReactNode
 }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(initialPageSize)
@@ -180,7 +183,24 @@ export function DataTable<T extends { id: string }>({
         </div>
       )}
 
-      <div className="thin-scroll -mx-4 overflow-x-auto px-4">
+      {renderCard && (
+        <ul className="space-y-2 sm:hidden">
+          {paged.map((row) => (
+            <li
+              key={row.id}
+              onClick={() => onRowClick?.(row)}
+              className={cn(
+                'rounded-xl border border-gray-200 bg-white p-3',
+                onRowClick && 'cursor-pointer active:bg-gray-50',
+              )}
+            >
+              {renderCard(row)}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className={cn('thin-scroll -mx-4 overflow-x-auto px-4', renderCard && 'hidden sm:block')}>
         <table className="w-full min-w-[720px] border-collapse text-start">
           <thead>
             <tr className="border-b border-gray-200 text-[11.5px] text-gray-500">

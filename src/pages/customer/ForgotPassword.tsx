@@ -6,12 +6,12 @@ import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/form'
-import { useAppData } from '@/store/AppDataContext'
+import { useService } from '@/store/ServiceContext'
 import { useToast } from '@/store/ToastContext'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
-  const { customers } = useAppData()
+  const service = useService()
   const { showToast } = useToast()
 
   const [email, setEmail] = useState('')
@@ -26,7 +26,7 @@ export default function ForgotPassword() {
     return () => window.clearInterval(timer)
   }, [countdown])
 
-  const submit = () => {
+  const submit = async () => {
     if (!email.trim()) {
       setError('يرجى إدخال البريد الإلكتروني.')
       return
@@ -36,16 +36,15 @@ export default function ForgotPassword() {
       return
     }
     setLoading(true)
-    window.setTimeout(() => {
-      setLoading(false)
-      const exists = customers.items.some((customer) => customer.email.toLowerCase() === email.trim().toLowerCase())
-      if (!exists) {
-        setError('لم نجد حسابًا مرتبطًا بهذا البريد الإلكتروني.')
-        return
-      }
-      setSent(true)
-      setCountdown(30)
-    }, 700)
+    const result = await service.requestPasswordReset(email)
+    setLoading(false)
+    if (!result.ok) {
+      setError(result.error ?? 'حدث خطأ. يرجى المحاولة لاحقًا.')
+      return
+    }
+    setError('')
+    setSent(true)
+    setCountdown(30)
   }
 
   if (sent) {
