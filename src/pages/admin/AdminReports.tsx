@@ -154,8 +154,9 @@ export default function AdminReports() {
   const cityRows = useMemo(() => {
     const map = new Map<string, { count: number; total: number }>()
     valid.forEach((order) => {
-      const current = map.get(order.address.city) ?? { count: 0, total: 0 }
-      map.set(order.address.city, { count: current.count + 1, total: current.total + order.total })
+      const city = order.address?.city ?? 'تسليم رقمي / خدمة'
+      const current = map.get(city) ?? { count: 0, total: 0 }
+      map.set(city, { count: current.count + 1, total: current.total + order.total })
     })
     return Array.from(map.entries())
       .map(([city, value]) => ({ id: city, city, ...value }))
@@ -191,7 +192,7 @@ export default function AdminReports() {
       ...scoped.map((order: Order) => [
         order.number,
         order.customerName,
-        order.address.city,
+        order.address?.city ?? 'تسليم رقمي / خدمة',
         order.status,
         order.paymentMethodName,
         order.subtotal,

@@ -47,6 +47,11 @@ export function discountPercent(product: Product): number {
   return Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
 }
 
+export function requiresShipping(product: Product): boolean {
+  if (product.requiresShipping !== undefined) return product.requiresShipping
+  return (product.kind ?? 'physical') === 'physical'
+}
+
 export function isOutOfStock(product: Product): boolean {
   if (!product.trackStock) return false
   return product.stock <= 0 && !product.allowBackorder
@@ -112,21 +117,26 @@ export function computeTotals({
   const couponResult = coupon ? validateCoupon(coupon, subtotal) : undefined
   const discount = couponResult?.valid ? couponResult.discount : 0
 
-  const method =
-    settings.shipping.methods.find((m) => m.id === shippingMethodId && m.enabled) ??
-    settings.shipping.methods.find((m) => m.enabled)
+  const hasShippableItems = lines.some(({ product }) => requiresShipping(product))
+  const method = hasShippableItems
+    ? settings.shipping.methods.find((m) => m.id === shippingMethodId && m.enabled) ??
+      settings.shipping.methods.find((m) => m.enabled)
+    : undefined
 
-  let shipping = method?.fee ?? 0
-  if (settings.shipping.freeOver > 0 && subtotal >= settings.shipping.freeOver) shipping = 0
+  let shipping = hasShippableItems ? method?.fee ?? 0 : 0
+  if (hasShippableItems && settings.shipping.freeOver > 0 && subtotal >= settings.shipping.freeOver) shipping = 0
   if (subtotal === 0) shipping = 0
 
   const payment: PaymentMethodSetting | undefined = settings.paymentMethods.find((p) => p.id === paymentMethodId)
-  const codFee = payment?.kind === 'cod' ? payment.extraFee ?? settings.codFee : 0
+  const codFee = hasShippableItems && payment?.kind === 'cod' ? payment.extraFee ?? settings.codFee : 0
 
   const taxable = Math.max(0, subtotal - discount)
-  const tax = settings.tax.enabled ? Math.round((taxable * settings.tax.rate) / 100) : 0
+  const rate = Math.max(0, settings.tax.rate) / 100
+  const tax = settings.tax.enabled
+    ? Math.round(settings.tax.inclusive && rate > 0 ? taxable - taxable / (1 + rate) : taxable * rate)
+    : 0
 
-  const total = Math.max(0, subtotal - discount + shipping + codFee + tax)
+  const total = Math.max(0, subtotal - discount + shipping + codFee + (settings.tax.inclusive ? 0 : tax))
 
   return { subtotal, discount, shipping, codFee, tax, total, coupon: couponResult }
 }

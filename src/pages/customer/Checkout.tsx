@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Check, CreditCard, Landmark, Wallet, Banknote, Plus, ShieldCheck } from 'lucide-react'
 import type { Address } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { computeTotals } from '@/lib/pricing'
+import { computeTotals, requiresShipping, unitPrice } from '@/lib/pricing'
 import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
 import { AddressCard, AddressFormModal } from '@/components/customer/AddressModals'
@@ -52,7 +52,21 @@ export default function Checkout() {
   const { items, coupon, clearCart } = useCart()
   const { showToast } = useToast()
 
-  const enabledPayments = useMemo(() => settings.paymentMethods.filter((method) => method.enabled), [settings.paymentMethods])
+  const needsShipping = useMemo(
+    () => items.some((item) => {
+      const product = products.items.find((candidate) => candidate.id === item.productId)
+      return !product || requiresShipping(product)
+    }),
+    [items, products.items],
+  )
+  const includesService = useMemo(
+    () => items.some((item) => products.items.find((candidate) => candidate.id === item.productId)?.kind === 'service'),
+    [items, products.items],
+  )
+  const enabledPayments = useMemo(
+    () => settings.paymentMethods.filter((method) => method.enabled && (needsShipping || method.kind !== 'cod')),
+    [settings.paymentMethods, needsShipping],
+  )
   const enabledShipping = useMemo(() => settings.shipping.methods.filter((method) => method.enabled), [settings.shipping.methods])
 
   const [step, setStep] = useState(1)
@@ -86,8 +100,19 @@ export default function Checkout() {
   useEffect(() => {
     const defaultAddress = user?.addresses.find((address) => address.isDefault) ?? user?.addresses[0]
     if (defaultAddress) setAddressId(defaultAddress.id)
-    else if (user && user.addresses.length === 0) setAddressModal(true)
-  }, [user])
+    else {
+      setAddressId('')
+      if (needsShipping && user && user.addresses.length === 0) setAddressModal(true)
+    }
+  }, [user, needsShipping])
+
+  useEffect(() => {
+    if (!enabledPayments.some((method) => method.id === paymentId)) setPaymentId(enabledPayments[0]?.id ?? '')
+  }, [enabledPayments, paymentId])
+
+  useEffect(() => {
+    if (needsShipping && !enabledShipping.some((method) => method.id === shippingId)) setShippingId(enabledShipping[0]?.id ?? '')
+  }, [enabledShipping, needsShipping, shippingId])
 
   const totals = useMemo(
     () => computeTotals({ items, products: products.items, coupon, settings, shippingMethodId: shippingId, paymentMethodId: paymentId }),
@@ -113,19 +138,19 @@ export default function Checkout() {
   }
 
   const placeOrder = async () => {
-    if (!agree || !address || !payment) return
+    if (!agree || !payment || (needsShipping && !address)) return
     setPlacing(true)
     setError('')
 
     const result = await service.placeOrder({
       customerId: user?.id,
-      customerName: user?.name ?? address.fullName,
+      customerName: user?.name ?? address?.fullName ?? '',
       customerEmail: user?.email ?? '',
-      customerPhone: address.phone,
+      customerPhone: address?.phone ?? user?.phone ?? '',
       items,
-      address,
+      address: needsShipping ? address : undefined,
       paymentMethodId: payment.id,
-      shippingMethodId: shippingMethod?.id ?? shippingId,
+      shippingMethodId: needsShipping ? shippingMethod?.id ?? shippingId : undefined,
       couponCode: coupon?.code,
       note: note || undefined,
       cardNumber: card.number,
@@ -171,7 +196,7 @@ export default function Checkout() {
                       {done ? <Check className="size-3.5" strokeWidth={3} /> : item.id}
                     </span>
                     <span className={cn('text-[11.5px] font-bold', active ? 'text-gray-900' : 'text-gray-400')}>
-                      {item.label}
+                      {item.id === 1 && !needsShipping ? 'التسليم' : item.label}
                     </span>
                   </div>
                   {index < STEPS.length - 1 && (
@@ -195,7 +220,7 @@ export default function Checkout() {
               <Button
                 size="lg"
                 fullWidth
-                disabled={!addressId}
+                disabled={needsShipping && (!addressId || enabledShipping.length === 0)}
                 onClick={() => setStep(2)}
               >
                 متابعة إلى الدفع
@@ -228,44 +253,46 @@ export default function Checkout() {
         {/* ------------------------- الخطوة 1: العنوان ------------------------- */}
         {step === 1 && (
           <>
-            <section>
-              <h2 className="mb-2 text-[14px] font-extrabold text-gray-900">عنوان الشحن</h2>
-              {user?.addresses.length ? (
-                <div className="space-y-2">
-                  {user.addresses.map((item) => (
-                    <AddressCard
-                      key={item.id}
-                      address={item}
-                      selected={addressId === item.id}
-                      onSelect={() => setAddressId(item.id)}
-                      onEdit={() => {
-                        setEditingAddress(item)
-                        setAddressModal(true)
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-2xl border border-dashed border-gray-300 p-4 text-center text-[12.5px] text-gray-500">
-                  لم تضف أي عنوان بعد. أضف عنوانك الأول لإكمال الطلب.
-                </p>
-              )}
-              <Button
-                variant="outline"
-                fullWidth
-                className="mt-3"
-                icon={<Plus className="size-4" />}
-                onClick={() => {
-                  setEditingAddress(null)
-                  setAddressModal(true)
-                }}
-              >
-                إضافة عنوان جديد
-              </Button>
-            </section>
+            {needsShipping ? (
+              <>
+                <section>
+                  <h2 className="mb-2 text-[14px] font-extrabold text-gray-900">عنوان التوصيل أو تنفيذ الخدمة</h2>
+                  {user?.addresses.length ? (
+                    <div className="space-y-2">
+                      {user.addresses.map((item) => (
+                        <AddressCard
+                          key={item.id}
+                          address={item}
+                          selected={addressId === item.id}
+                          onSelect={() => setAddressId(item.id)}
+                          onEdit={() => {
+                            setEditingAddress(item)
+                            setAddressModal(true)
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-gray-300 p-4 text-center text-[12.5px] text-gray-500">
+                      لم تضف أي عنوان بعد. أضف عنوانًا لإكمال الطلب أو تنسيق موعد الخدمة.
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    className="mt-3"
+                    icon={<Plus className="size-4" />}
+                    onClick={() => {
+                      setEditingAddress(null)
+                      setAddressModal(true)
+                    }}
+                  >
+                    إضافة عنوان جديد
+                  </Button>
+                </section>
 
-            <section>
-              <h2 className="mb-2 text-[14px] font-extrabold text-gray-900">طريقة الشحن</h2>
+                <section>
+                  <h2 className="mb-2 text-[14px] font-extrabold text-gray-900">طريقة الشحن أو الزيارة</h2>
               <div className="space-y-2">
                 {enabledShipping.map((method) => (
                   <button
@@ -294,8 +321,17 @@ export default function Checkout() {
                     </span>
                   </button>
                 ))}
-              </div>
-            </section>
+                </div>
+                </section>
+              </>
+            ) : (
+              <section className="rounded-2xl border border-brand/10 bg-brand-soft/40 p-4">
+                <h2 className="text-[14px] font-extrabold text-gray-900">التسليم الرقمي أو تنفيذ الخدمة</h2>
+                <p className="mt-1.5 text-[12.5px] leading-6 text-gray-600">
+                  لا يلزم عنوان شحن لهذا الطلب. ستظهر تفاصيل تسليم المحتوى أو متابعة الخدمة ضمن معلومات الطلب بعد التأكيد.
+                </p>
+              </section>
+            )}
           </>
         )}
 
@@ -410,19 +446,23 @@ export default function Checkout() {
         {/* ------------------------ الخطوة 3: المراجعة ------------------------ */}
         {step === 3 && (
           <>
-            <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[13px] font-bold text-gray-800">عنوان الشحن</h3>
-                <button type="button" onClick={() => setStep(1)} className="text-[12px] font-bold text-brand">
-                  تعديل
-                </button>
-              </div>
-              <p className="mt-1 text-[12.5px] leading-6 text-gray-600">
-                {address?.fullName} — {address?.phone}
-                <br />
-                {address?.city}، {address?.district}، {address?.street}
-              </p>
-            </section>
+            {needsShipping ? (
+              <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[13px] font-bold text-gray-800">عنوان التوصيل أو الخدمة</h3>
+                  <button type="button" onClick={() => setStep(1)} className="text-[12px] font-bold text-brand">تعديل</button>
+                </div>
+                <p className="mt-1 text-[12.5px] leading-6 text-gray-600">
+                  {address?.fullName} — {address?.phone}<br />
+                  {address?.city}، {address?.district}، {address?.street}
+                </p>
+              </section>
+            ) : (
+              <section className="rounded-2xl border border-brand/10 bg-brand-soft/40 p-3.5">
+                <h3 className="text-[13px] font-bold text-gray-800">طريقة التسليم</h3>
+                <p className="mt-1 text-[12.5px] leading-6 text-gray-600">تسليم رقمي أو تنسيق الخدمة ضمن تفاصيل الطلب؛ لا يلزم عنوان شحن.</p>
+              </section>
+            )}
 
             <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
               <div className="flex items-center justify-between">
@@ -435,7 +475,7 @@ export default function Checkout() {
                 {payment?.name}
                 {payment?.kind === 'card' && card.number && ` — **** ${card.number.slice(-4)}`}
               </p>
-              <p className="mt-1 text-[12px] text-gray-500">الشحن: {shippingMethod?.name}</p>
+              {needsShipping && <p className="mt-1 text-[12px] text-gray-500">الشحن أو الزيارة: {shippingMethod?.name}</p>}
             </section>
 
             <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
@@ -452,7 +492,7 @@ export default function Checkout() {
                         <p className="text-[11.5px] text-gray-500">الكمية: {item.quantity}</p>
                       </div>
                       <span className="text-[12.5px] font-bold text-gray-900">
-                        {formatPrice(product.price * item.quantity, settings.currency)}
+                        {formatPrice(unitPrice(product, item.options) * item.quantity, settings.currency)}
                       </span>
                     </li>
                   )
@@ -472,12 +512,14 @@ export default function Checkout() {
                     <span className="font-semibold">- {formatPrice(totals.discount, settings.currency)}</span>
                   </li>
                 )}
-                <li className="flex justify-between">
-                  <span>رسوم الشحن</span>
-                  <span className="font-semibold">
-                    {totals.shipping === 0 ? 'مجاني' : formatPrice(totals.shipping, settings.currency)}
-                  </span>
-                </li>
+                {needsShipping && (
+                  <li className="flex justify-between">
+                    <span>رسوم الشحن</span>
+                    <span className="font-semibold">
+                      {totals.shipping === 0 ? 'مجاني' : formatPrice(totals.shipping, settings.currency)}
+                    </span>
+                  </li>
+                )}
                 {totals.codFee > 0 && (
                   <li className="flex justify-between">
                     <span>رسوم الدفع عند الاستلام</span>
@@ -499,12 +541,12 @@ export default function Checkout() {
             </section>
 
             <section>
-              <label className="mb-1.5 block text-[13px] font-semibold text-gray-700">ملاحظات على الطلب (اختياري)</label>
+              <label className="mb-1.5 block text-[13px] font-semibold text-gray-700">{includesService ? 'موعد أو تفاصيل الخدمة (اختياري)' : 'ملاحظات على الطلب (اختياري)'}</label>
               <textarea
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 rows={3}
-                placeholder="أضف ملاحظة على الطلب (اختياري)..."
+                placeholder={includesService ? 'اذكر الوقت المناسب أو أي تفاصيل تساعد على تنفيذ الخدمة...' : 'أضف ملاحظة على الطلب (اختياري)...'}
                 className="w-full rounded-xl border border-gray-200 bg-white p-3 text-[13px] outline-none focus:border-brand"
               />
             </section>

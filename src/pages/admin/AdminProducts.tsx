@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Copy, Download, Eye, EyeOff, Pencil, Plus, Trash2, Upload } from 'lucide-react'
-import type { Product, ProductStatus } from '@/types'
+import type { Product, ProductKind, ProductStatus } from '@/types'
 import { isOutOfStock } from '@/lib/pricing'
 import { downloadCsv, formatNumber, formatPrice, uid } from '@/lib/utils'
 import { AdminPage, Card, DataTable, Toolbar } from '@/components/admin/AdminUI'
@@ -10,6 +10,56 @@ import { Input, Select } from '@/components/ui/form'
 import { ConfirmDialog, Dropdown, MenuItem } from '@/components/ui/overlay'
 import { useAppData } from '@/store/AppDataContext'
 import { useToast } from '@/store/ToastContext'
+import { productImage } from '@/lib/artwork'
+
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let quoted = false
+  const input = text.replace(/^\uFEFF/, '')
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]
+    if (character === '"') {
+      if (quoted && input[index + 1] === '"') {
+        cell += '"'
+        index += 1
+      } else quoted = !quoted
+    } else if (character === ',' && !quoted) {
+      row.push(cell.trim())
+      cell = ''
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && input[index + 1] === '\n') index += 1
+      row.push(cell.trim())
+      if (row.some((value) => value.length > 0)) rows.push(row)
+      row = []
+      cell = ''
+    } else cell += character
+  }
+  row.push(cell.trim())
+  if (row.some((value) => value.length > 0)) rows.push(row)
+  return rows
+}
+
+function importedKind(value: string): ProductKind {
+  const normalized = value.trim().toLowerCase()
+  if (normalized.includes('digital') || normalized.includes('رقمي') || normalized.includes('الكتروني')) return 'digital'
+  if (normalized.includes('service') || normalized.includes('خدمة') || normalized.includes('حجز')) return 'service'
+  return 'physical'
+}
+
+function expandCategories(categories: Array<{ id: string; parentId: string | null }>, selected: string[]) {
+  const result = new Set(selected)
+  const visited = new Set<string>()
+  const visit = (parentId: string) => categories.filter((category) => category.parentId === parentId).forEach((category) => {
+    result.add(category.id)
+    if (visited.has(category.id)) return
+    visited.add(category.id)
+    visit(category.id)
+  })
+  selected.forEach(visit)
+  return result
+}
 
 export default function AdminProducts() {
   const navigate = useNavigate()
@@ -19,6 +69,7 @@ export default function AdminProducts() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<'all' | ProductStatus>('all')
+  const [kind, setKind] = useState<'all' | ProductKind>('all')
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [brandIds, setBrandIds] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState('')
@@ -32,9 +83,11 @@ export default function AdminProducts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const expandedCategoryIds = expandCategories(categories.items, categoryIds)
     return products.items.filter((product) => {
       if (status !== 'all' && product.status !== status) return false
-      if (categoryIds.length && !product.categoryIds.some((id) => categoryIds.includes(id))) return false
+      if (kind !== 'all' && (product.kind ?? 'physical') !== kind) return false
+      if (categoryIds.length && !product.categoryIds.some((id) => expandedCategoryIds.has(id))) return false
       if (brandIds.length && (!product.brandId || !brandIds.includes(product.brandId))) return false
       if (minPrice && product.price < Number(minPrice)) return false
       if (maxPrice && product.price > Number(maxPrice)) return false
@@ -43,20 +96,23 @@ export default function AdminProducts() {
       if (q && !product.name.toLowerCase().includes(q) && !product.sku.toLowerCase().includes(q)) return false
       return true
     })
-  }, [products.items, query, status, categoryIds, brandIds, minPrice, maxPrice, stockFilter])
+  }, [products.items, categories.items, query, status, kind, categoryIds, brandIds, minPrice, maxPrice, stockFilter])
 
   const rootCategories = categories.items.filter((category) => !category.parentId)
 
   const exportCsv = () => {
     downloadCsv('products.csv', [
-      ['الاسم', 'SKU', 'القسم', 'العلامة التجارية', 'السعر', 'المخزون', 'الحالة', 'المبيعات', 'التقييم'],
+      ['الاسم', 'SKU', 'النوع', 'القسم', 'العلامة التجارية', 'السعر', 'المخزون', 'يتطلب شحنًا', 'تعليمات التسليم', 'الحالة', 'المبيعات', 'التقييم'],
       ...filtered.map((product) => [
         product.name,
         product.sku,
-        product.categoryIds.map((id) => getCategory(id)?.name ?? '').join(' / '),
+        product.kind === 'digital' ? 'رقمي' : product.kind === 'service' ? 'خدمة' : 'مادي',
+        product.categoryIds.map((id) => getCategory(id)?.name ?? '').join('; '),
         brands.items.find((brand) => brand.id === product.brandId)?.name ?? '',
         product.price,
         product.stock,
+        (product.requiresShipping ?? (product.kind ?? 'physical') === 'physical') ? 'نعم' : 'لا',
+        product.deliveryInstructions ?? '',
         product.status === 'published' ? 'متاح' : product.status === 'draft' ? 'مسودة' : 'مخفي',
         product.sales,
         product.rating,
@@ -66,48 +122,98 @@ export default function AdminProducts() {
 
   const importCsv = async (file?: File | null) => {
     if (!file) return
-    const text = await file.text()
-    const lines = text.split('\n').filter((line) => line.trim())
-    if (lines.length < 2) {
-      showToast('الملف فارغ أو غير صالح.', { type: 'error' })
-      return
-    }
-    const header = lines[0].split(',').map((cell) => cell.trim().toLowerCase())
-    const nameIndex = header.findIndex((cell) => cell.includes('name') || cell.includes('اسم'))
-    const priceIndex = header.findIndex((cell) => cell.includes('price') || cell.includes('سعر'))
-    const stockIndex = header.findIndex((cell) => cell.includes('stock') || cell.includes('مخزون'))
-    if (nameIndex === -1 || priceIndex === -1) {
-      showToast('يجب أن يحتوي الملف على أعمدة الاسم والسعر.', { type: 'error' })
-      return
-    }
-    const created: Product[] = lines.slice(1).map((line) => {
-      const cells = line.split(',').map((cell) => cell.replace(/"/g, '').trim())
-      return {
-        id: uid('p'),
-        name: cells[nameIndex] || 'منتج مستورد',
-        sku: `IMP-${Math.floor(Math.random() * 9000 + 1000)}`,
-        description: '',
-        images: [],
-        price: Number(cells[priceIndex]) || 0,
-        stock: stockIndex >= 0 ? Number(cells[stockIndex]) || 0 : 0,
-        trackStock: true,
-        lowStockThreshold: settings.lowStockThreshold,
-        allowBackorder: false,
-        categoryIds: [],
-        tags: [],
-        options: [],
-        variants: [],
-        specifications: [],
-        relatedIds: [],
-        status: 'draft' as ProductStatus,
-        rating: 0,
-        reviewCount: 0,
-        sales: 0,
-        createdAt: new Date().toISOString(),
+    try {
+      const rows = parseCsv(await file.text())
+      if (rows.length < 2) {
+        showToast('الملف فارغ أو غير صالح.', { type: 'error' })
+        return
       }
-    })
-    products.addMany(created)
-    showToast(`تم استيراد ${created.length} منتج كمسودة.`, { type: 'success' })
+      const header = rows[0].map((cell) => cell.trim().toLowerCase())
+      const findColumn = (...terms: string[]) => header.findIndex((cell) => terms.some((term) => cell.includes(term)))
+      const nameIndex = findColumn('name', 'اسم')
+      const priceIndex = findColumn('price', 'سعر')
+      if (nameIndex === -1 || priceIndex === -1) {
+        showToast('يجب أن يحتوي الملف على عمودين على الأقل: الاسم والسعر.', { type: 'error' })
+        return
+      }
+      const skuIndex = findColumn('sku', 'رمز المنتج')
+      const stockIndex = findColumn('stock', 'المخزون', 'كمية')
+      const kindIndex = findColumn('kind', 'type', 'النوع')
+      const categoryIndex = findColumn('category', 'قسم')
+      const brandIndex = findColumn('brand', 'علامة')
+      const tagsIndex = findColumn('tag', 'وسم')
+      const shippingIndex = findColumn('shipping', 'شحن')
+      const deliveryIndex = findColumn('delivery', 'instruction', 'تعليمات التسليم', 'محتوى التسليم')
+      const usedSkus = new Set(products.items.map((product) => product.sku.toLowerCase()))
+      const created: Product[] = []
+      let skipped = 0
+
+      for (const [rowIndex, cells] of rows.slice(1).entries()) {
+        const valueAt = (index: number) => index >= 0 ? cells[index]?.trim() ?? '' : ''
+        const name = valueAt(nameIndex)
+        const price = Number(valueAt(priceIndex).replace(/[\s,]/g, ''))
+        if (!name || !Number.isFinite(price) || price <= 0) {
+          skipped += 1
+          continue
+        }
+        const kind = importedKind(valueAt(kindIndex))
+        const enteredSku = valueAt(skuIndex)
+        let sku = enteredSku || `IMP-${Date.now().toString(36)}-${rowIndex + 1}`
+        if (usedSkus.has(sku.toLowerCase())) {
+          skipped += 1
+          continue
+        }
+        usedSkus.add(sku.toLowerCase())
+        const categoryIds = valueAt(categoryIndex)
+          .split(/[;|]/)
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .map((value) => categories.items.find((category) => category.id === value || category.name.toLowerCase() === value.toLowerCase())?.id)
+          .filter((value): value is string => Boolean(value))
+        const brandId = brands.items.find((brand) => brand.id === valueAt(brandIndex) || brand.name.toLowerCase() === valueAt(brandIndex).toLowerCase())?.id
+        const stock = Math.max(0, Number(valueAt(stockIndex).replace(/[\s,]/g, '')) || 0)
+        const shippingValue = valueAt(shippingIndex).toLowerCase()
+        const requiresDelivery = shippingIndex >= 0 && shippingValue
+          ? !['no', 'false', '0', 'لا', 'كلا'].includes(shippingValue)
+          : kind === 'physical'
+        created.push({
+          id: uid('p'),
+          kind,
+          requiresShipping: requiresDelivery,
+          deliveryInstructions: valueAt(deliveryIndex),
+          name,
+          sku,
+          shortDescription: '',
+          description: '',
+          images: [productImage('box', rowIndex + 500)],
+          price,
+          stock,
+          trackStock: kind === 'physical',
+          lowStockThreshold: settings.lowStockThreshold,
+          allowBackorder: false,
+          categoryIds: [...new Set(categoryIds)],
+          brandId,
+          tags: valueAt(tagsIndex).split(/[;|]/).map((tag) => tag.trim()).filter(Boolean),
+          options: [],
+          variants: [],
+          specifications: [],
+          relatedIds: [],
+          status: 'draft',
+          rating: 0,
+          reviewCount: 0,
+          sales: 0,
+          createdAt: new Date().toISOString(),
+        })
+      }
+      if (!created.length) {
+        showToast(skipped ? 'لم تتضمن البيانات منتجات صالحة للاستيراد؛ تحقق من الاسم والسعر.' : 'لا توجد صفوف منتجات في الملف.', { type: 'error' })
+        return
+      }
+      products.addMany(created)
+      showToast(`تم استيراد ${created.length} منتج كمسودة${skipped ? `، وتجاوز ${skipped} صفًا غير صالح أو مكررًا` : ''}.`, { type: 'success' })
+    } catch {
+      showToast('تعذر قراءة الملف. تحقق من صيغة CSV وحاول مرة أخرى.', { type: 'error' })
+    }
   }
 
   const duplicate = (product: Product) => {
@@ -137,7 +243,7 @@ export default function AdminProducts() {
             إضافة منتج جديد
           </Button>
           <Button variant="outline" icon={<Upload className="size-4" />} onClick={() => fileRef.current?.click()}>
-            استيراد من Excel/CSV
+            استيراد CSV
           </Button>
           <Button variant="outline" icon={<Download className="size-4" />} onClick={exportCsv}>
             تصدير إلى Excel/CSV
@@ -147,7 +253,11 @@ export default function AdminProducts() {
             type="file"
             accept=".csv,text/csv"
             className="hidden"
-            onChange={(event) => void importCsv(event.target.files?.[0])}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              void importCsv(file)
+            }}
           />
         </>
       }
@@ -170,6 +280,17 @@ export default function AdminProducts() {
               { value: 'hidden', label: 'مخفي' },
             ]}
             className="h-10 w-36"
+          />
+          <Select
+            value={kind}
+            onChange={(event) => setKind(event.target.value as 'all' | ProductKind)}
+            options={[
+              { value: 'all', label: 'كل أنواع العروض' },
+              { value: 'physical', label: 'منتجات مادية' },
+              { value: 'digital', label: 'منتجات رقمية' },
+              { value: 'service', label: 'خدمات' },
+            ]}
+            className="h-10 w-40"
           />
           <Select
             value={stockFilter}
@@ -227,13 +348,14 @@ export default function AdminProducts() {
                 {brand.name}
               </Chip>
             ))}
-            {(query || status !== 'all' || categoryIds.length || brandIds.length || minPrice || maxPrice || stockFilter !== 'all') && (
+            {(query || status !== 'all' || kind !== 'all' || categoryIds.length || brandIds.length || minPrice || maxPrice || stockFilter !== 'all') && (
               <button
                 type="button"
                 className="text-[12px] font-bold text-danger"
                 onClick={() => {
                   setQuery('')
                   setStatus('all')
+                  setKind('all')
                   setCategoryIds([])
                   setBrandIds([])
                   setMinPrice('')
@@ -265,6 +387,8 @@ export default function AdminProducts() {
                   <p className="line-clamp-2 text-[12.5px] font-semibold text-gray-800">{product.name}</p>
                   <p className="text-[11px] text-gray-400">{product.sku}</p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {product.kind === 'digital' && <Badge tone="brand">رقمي</Badge>}
+                    {product.kind === 'service' && <Badge tone="warning">خدمة</Badge>}
                     {product.status === 'published' ? (
                       <Badge tone="success">متاح</Badge>
                     ) : product.status === 'draft' ? (
@@ -340,7 +464,7 @@ export default function AdminProducts() {
                 render: (product) => (
                   <div className="max-w-56">
                     <p className="truncate font-semibold text-gray-800">{product.name}</p>
-                    <p className="text-[11px] text-gray-400">{product.sku}</p>
+                    <p className="text-[11px] text-gray-400">{product.sku} · {product.kind === 'digital' ? 'رقمي' : product.kind === 'service' ? 'خدمة' : 'مادي'}</p>
                   </div>
                 ),
               },

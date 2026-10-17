@@ -1,7 +1,7 @@
 # سوقلي — Sawqli
 
-واجهة متجر إلكتروني عربية (RTL) للأجهزة الإلكترونية والكهربائية — **واجهة فقط (Frontend Only)** بدون أي API أو خادم.
-المتجر يفتح بكتالوج جاهز: **54 منتجًا**، **8 عملاء**، **14 طلبًا** بكل حالاته، **73 تقييمًا**، كوبونات خصم وبانرات ترويجية.
+منصة تسوق عربية متجاوبة (RTL) تجمع الإلكترونيات والأجهزة المنزلية وقطع غيار السيارات والأزياء والأدوات والمنتجات الرقمية والخدمات.
+تبدأ بكتالوج من **90 منتجًا**، و**8 عملاء**، و**14 طلبًا** بكل حالاته، و**73 تقييمًا**، مع لوحة مركزية لإدارة الصفحات والأقسام والهوية وروابط الواجهة.
 كل البيانات تُحفظ في `localStorage`، لذا يعمل التطبيق بالكامل بدون إنترنت.
 
 مبنية حسب الوثيقة التنفيذية `design md` (تطبيق العميل + لوحة الإدارة).
@@ -27,7 +27,7 @@ npm run build      # بناء للإنتاج إلى dist/
 npm run preview    # معاينة بناء الإنتاج على 4173
 npm run typecheck  # فحص أنواع TypeScript
 npm run smoke      # اختبار تصيير لكل المسارات (React + jsdom)
-npm run flows      # 10 تدفقات حرجة: الدخول، السلة، الكوبون، رحلة شراء كاملة
+npm run flows      # 12 تدفقًا حرجًا، تشمل CMS والتسليم الرقمي والشراء الكامل
 npm test           # typecheck + smoke + flows
 ```
 
@@ -81,7 +81,7 @@ npm test           # typecheck + smoke + flows
   `/account` (+ `/account/edit`، `/account/addresses`، `/account/payment-methods`، `/account/notifications`)، وصفحة 404.
 - **لوحة الإدارة:** `/admin` (تسجيل دخول) و`/admin/dashboard`، `orders`، `orders/:id`، `products`، `products/new`،
   `products/:id/edit`، `categories`، `brands`، `customers`، `reviews`، `coupons`، `banners`، `reports`،
-  `notifications`، `settings/:section` (9 أقسام)، `profile`.
+  `notifications`، `cms` (إدارة المحتوى)، `settings/:section` (9 أقسام)، `profile`.
 
 ## بنية المشروع
 
@@ -92,8 +92,9 @@ src/
   index.css               # توكنات التصميم (@theme) والأنيميشن والأدوات
   types.ts                # نموذج البيانات الكامل
   data/
-    catalog.ts            # كتالوج المنتجات (54 منتجًا بخيارات ومواصفات وصور SVG)
-    seed.ts               # البيانات الأولية: عملاء، طلبات، تقييمات، كوبونات، بانرات، إشعارات
+    catalog.ts            # الكتالوج الأساسي (54 منتجًا بخيارات ومواصفات وصور SVG)
+    expandedCatalog.ts    # إضافات السيارات والأزياء والأدوات والمنتجات الرقمية والخدمات
+    seed.ts               # البيانات الأولية: الأقسام، العلامات، العملاء، الطلبات، CMS والإعدادات
   lib/                    # utils، artwork (SVG)، i18n، pricing، query، orders، service
   store/                  # AppProviders: Toast → AppData → Service → Language → Auth → Cart → Wishlist
     ServiceContext.tsx    # طبقة الخدمات: المصادقة، الطلبات، الكوبونات، المراجعات، الملف الشخصي

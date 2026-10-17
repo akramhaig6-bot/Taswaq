@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Percent, Sparkles } from 'lucide-react'
 import { filterProducts, sortProducts } from '@/lib/query'
 import { discountPercent, isDiscountActive } from '@/lib/pricing'
@@ -12,7 +12,22 @@ import { ProductCard, ProductCarousel } from '@/components/customer/product'
 import { Chip, SectionHeader } from '@/components/ui/display'
 import { useAppData } from '@/store/AppDataContext'
 import { useLang } from '@/store/LanguageContext'
-import type { Product } from '@/types'
+import type { Category, Product } from '@/types'
+
+function expandCategorySelection(categories: Category[], selected: string[] = []) {
+  const result = new Set(selected)
+  const visited = new Set<string>()
+  const visit = (parentId: string) => {
+    categories.filter((category) => category.parentId === parentId).forEach((category) => {
+      result.add(category.id)
+      if (visited.has(category.id)) return
+      visited.add(category.id)
+      visit(category.id)
+    })
+  }
+  selected.forEach(visit)
+  return [...result]
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -210,7 +225,7 @@ export default function Home() {
             : filterProducts(
                 published,
                 {
-                  categoryIds: section.filter?.categoryIds,
+                  categoryIds: expandCategorySelection(categories.items, section.filter?.categoryIds),
                   brandIds: section.filter?.brandIds,
                   minPrice: section.filter?.minPrice,
                   maxPrice: section.filter?.maxPrice,
@@ -241,7 +256,16 @@ export default function Home() {
           )
         })}
 
-        <footer className="pt-2 pb-4 text-center">
+        <footer className="border-t border-gray-100 pt-4 pb-4 text-center">
+          {(settings.footerLinks ?? []).some((link) => link.enabled) && (
+            <nav aria-label="روابط المتجر" className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              {(settings.footerLinks ?? []).filter((link) => link.enabled).map((link) => (
+                <Link key={link.id} to={link.path} className="text-[11.5px] font-semibold text-gray-500 hover:text-brand">
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          )}
           <p className="text-[11.5px] text-gray-400">{settings.copyright}</p>
           <p className="mt-1 text-[10.5px] text-gray-300">
             {formatNumber(published.length)} منتج متاح الآن

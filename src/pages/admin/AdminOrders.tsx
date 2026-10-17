@@ -10,6 +10,10 @@ import { Input, Select } from '@/components/ui/form'
 import { useAppData } from '@/store/AppDataContext'
 import { useToast } from '@/store/ToastContext'
 
+function orderLocation(order: Order) {
+  return order.address?.city ?? 'تسليم رقمي / خدمة'
+}
+
 export default function AdminOrders() {
   const navigate = useNavigate()
   const { orders, settings, updateOrderStatus } = useAdminOrders()
@@ -27,7 +31,7 @@ export default function AdminOrders() {
       .filter((order) => {
         if (status !== 'all' && order.status !== status) return false
         if (payment !== 'all' && order.paymentMethodId !== payment) return false
-        if (city !== 'all' && order.address.city !== city) return false
+        if (city !== 'all' && orderLocation(order) !== city) return false
         if (from && new Date(order.createdAt) < new Date(from)) return false
         if (to && new Date(order.createdAt) > new Date(`${to}T23:59:59`)) return false
         if (q && !order.number.includes(q) && !order.customerName.toLowerCase().includes(q) && !order.customerPhone.includes(q))
@@ -37,7 +41,7 @@ export default function AdminOrders() {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   }, [orders.items, query, status, payment, city, from, to])
 
-  const cities = useMemo(() => Array.from(new Set(orders.items.map((order) => order.address.city))), [orders.items])
+  const cities = useMemo(() => Array.from(new Set(orders.items.map(orderLocation))), [orders.items])
 
   const exportCsv = () => {
     downloadCsv('orders.csv', [
@@ -46,7 +50,7 @@ export default function AdminOrders() {
         order.number,
         order.customerName,
         order.customerPhone,
-        order.address.city,
+        orderLocation(order),
         order.total,
         order.paymentMethodName,
         ORDER_STATUS_TABS.find((tab) => tab.value === order.status)?.label ?? order.status,
@@ -146,7 +150,7 @@ export default function AdminOrders() {
                   <div className="min-w-0">
                     <p className="font-bold text-gray-900">#{order.number}</p>
                     <p className="truncate text-[11.5px] text-gray-500">
-                      {order.customerName} — {order.address.city}
+                      {order.customerName} — {orderLocation(order)}
                     </p>
                     <p className="text-[11px] text-gray-400">{formatDate(order.createdAt)}</p>
                   </div>
@@ -195,7 +199,7 @@ export default function AdminOrders() {
                   </div>
                 ),
               },
-              { key: 'city', header: 'المدينة', render: (order) => order.address.city },
+              { key: 'city', header: 'المدينة / التسليم', render: (order) => orderLocation(order) },
               { key: 'items', header: 'المنتجات', render: (order) => `${order.items.length} منتج` },
               { key: 'payment', header: 'طريقة الدفع', render: (order) => order.paymentMethodName },
               {

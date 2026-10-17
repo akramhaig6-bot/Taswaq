@@ -20,7 +20,7 @@ import {
   type ServiceResult,
 } from '@/lib/service'
 import { buildTimeline } from '@/lib/orders'
-import { computeTotals, optionsLabel, unitPrice } from '@/lib/pricing'
+import { computeTotals, optionsLabel, requiresShipping, unitPrice } from '@/lib/pricing'
 import { normalizePhone, uid } from '@/lib/utils'
 import { useAppData } from '@/store/AppDataContext'
 
@@ -77,9 +77,9 @@ export interface OrderDraft {
   customerEmail: string
   customerPhone: string
   items: CartItem[]
-  address: Address
+  address?: Address
   paymentMethodId: string
-  shippingMethodId: string
+  shippingMethodId?: string
   couponCode?: string
   note?: string
   cardNumber?: string
@@ -283,16 +283,25 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
       if (!payment || !payment.enabled) {
         return serviceFail<Order>('طريقة الدفع غير متاحة حاليًا. اختر طريقة أخرى.', 'PAYMENT_UNAVAILABLE')
       }
-      const shipping = settings.shipping.methods.find((item) => item.id === draft.shippingMethodId)
-      if (!shipping || !shipping.enabled) {
-        return serviceFail<Order>('طريقة الشحن غير متاحة حاليًا. اختر طريقة أخرى.', 'SHIPPING_UNAVAILABLE')
-      }
 
       /* التحقق من توفر الكميات قبل خصم المخزون */
       const lines = draft.items.map((item) => {
         const product = products.items.find((p) => p.id === item.productId)
         return { item, product }
       })
+      const hasShippableItems = lines.some(({ product }) => Boolean(product && requiresShipping(product)))
+      if (hasShippableItems && !draft.address) {
+        return serviceFail<Order>('أدخل عنوان التوصيل لإكمال الطلب.', 'ADDRESS_REQUIRED')
+      }
+      const shipping = hasShippableItems
+        ? settings.shipping.methods.find((item) => item.id === draft.shippingMethodId && item.enabled)
+        : undefined
+      if (hasShippableItems && !shipping) {
+        return serviceFail<Order>('طريقة الشحن غير متاحة حاليًا. اختر طريقة أخرى.', 'SHIPPING_UNAVAILABLE')
+      }
+      if (!hasShippableItems && payment.kind === 'cod') {
+        return serviceFail<Order>('اختر طريقة دفع إلكترونية لهذا الطلب.', 'PAYMENT_UNAVAILABLE')
+      }
       const missing = lines.find(
         ({ item, product }) =>
           !product || product.status !== 'published' || (product.trackStock && product.stock < item.quantity),
@@ -332,6 +341,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         .map(({ item, product }) => ({
           id: `oi-${item.id}`,
           productId: product.id,
+          kind: product.kind ?? 'physical',
+          deliveryInstructions: product.deliveryInstructions?.trim() || undefined,
           name: product.name,
           image: product.images[0],
           price: unitPrice(product, item.options),
@@ -344,15 +355,15 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         id: `o-${Date.now().toString(36)}`,
         number: nextOrderNumber(orders.items.map((item) => item.number)),
         customerId: draft.customerId,
-        customerName: draft.address.fullName || draft.customerName,
+        customerName: draft.address?.fullName || draft.customerName,
         customerEmail: draft.customerEmail,
-        customerPhone: draft.address.phone || draft.customerPhone,
+        customerPhone: draft.address?.phone || draft.customerPhone,
         items: orderItems,
         address: draft.address,
         paymentMethodId: payment.id,
         paymentMethodName: payment.name,
         paymentStatus: payment.kind === 'cod' || payment.kind === 'bank' ? 'pending' : 'paid',
-        shippingMethod: shipping.name,
+        shippingMethod: shipping?.name ?? 'تسليم رقمي / تنفيذ الخدمة',
         subtotal: totals.subtotal,
         discount: totals.discount,
         couponCode: coupon?.code,

@@ -69,6 +69,8 @@ export default function OrderSuccess() {
     )
   }
 
+  const hasDigitalOrService = order.items.some((item) => item.kind === 'digital' || item.kind === 'service')
+
   return (
     <Screen header={<PageHeader title="تأكيد الطلب" onBack={() => navigate('/', { replace: true })} />}>
       <div className="relative px-4 pb-8 pt-6">
@@ -82,7 +84,11 @@ export default function OrderSuccess() {
             {t('order.success.title', 'تم استلام طلبك بنجاح!')}
           </h1>
           <p className="max-w-xs text-[13px] leading-6 text-gray-500">
-            {t('order.success.body', 'شكرًا لتسوقك معنا. سنعمل على تجهيز طلبك في أقرب وقت.')}
+            {hasDigitalOrService
+              ? order.paymentStatus === 'paid'
+                ? 'تم تأكيد طلبك. افتح تفاصيل الطلب لمراجعة المحتوى الرقمي أو تعليمات تنفيذ الخدمة.'
+                : 'تم استلام طلبك. ستظهر تفاصيل التسليم بعد تأكيد الدفع.'
+              : t('order.success.body', 'شكرًا لتسوقك معنا. سنعمل على تجهيز طلبك في أقرب وقت.')}
           </p>
         </div>
 
@@ -114,20 +120,20 @@ export default function OrderSuccess() {
             <dd className="font-semibold text-gray-800">{order.paymentMethodName}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <dt className="shrink-0 text-gray-500">عنوان التوصيل</dt>
+            <dt className="shrink-0 text-gray-500">{order.address ? 'عنوان التوصيل' : 'التسليم'}</dt>
             <dd className="truncate text-end font-semibold text-gray-800">
-              {order.address.city}، {order.address.district}
+              {order.address ? `${order.address.city}، ${order.address.district}` : 'إلكتروني / تنفيذ الخدمة'}
             </dd>
           </div>
           <div className="flex items-center justify-between">
-            <dt className="text-gray-500">التوصيل المتوقع</dt>
-            <dd className="font-semibold text-gray-800">{formatDate(order.expectedDelivery)}</dd>
+            <dt className="text-gray-500">{order.address ? 'التوصيل المتوقع' : 'موعد التنفيذ المتوقع'}</dt>
+            <dd className="font-semibold text-gray-800">{order.expectedDelivery ? formatDate(order.expectedDelivery) : 'سيتم التنسيق قريبًا'}</dd>
           </div>
         </dl>
 
         <div className="mt-5 space-y-2">
           <Button fullWidth size="lg" onClick={() => navigate(`/orders/${order.id}`)}>
-            تتبع الطلب
+            {hasDigitalOrService ? 'عرض تفاصيل الطلب' : 'تتبع الطلب'}
           </Button>
           <Button fullWidth size="lg" variant="outline" onClick={() => navigate('/', { replace: true })}>
             متابعة التسوق

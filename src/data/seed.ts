@@ -18,6 +18,7 @@ import type {
 import { brandLogo, categoryImage } from '@/lib/artwork'
 import { daysAgoIso } from '@/lib/utils'
 import { catalogProductsWithRelations } from '@/data/catalog'
+import { expandedCatalogProducts } from '@/data/expandedCatalog'
 
 /* ------------------------------ الأقسام ------------------------------ */
 export const seedCategories: Category[] = [
@@ -48,6 +49,45 @@ export const seedCategories: Category[] = [
   { id: 'c-printers-laser', name: 'طابعات ليزر', image: categoryImage('printer', '#334155'), parentId: 'c-printers', active: true, order: 1 },
   { id: 'c-printers-ink', name: 'طابعات حبر', image: categoryImage('printer', '#0f766e'), parentId: 'c-printers', active: true, order: 2 },
   { id: 'c-tools-kitchen', name: 'أدوات المطبخ', image: categoryImage('kettle', '#f97316'), parentId: 'c-tools', active: true, order: 1 },
+  /* أقسام تجارية متعددة قابلة للتوسع */
+  { id: 'c-auto-parts', name: 'قطع غيار السيارات', nameEn: 'Auto Parts', image: categoryImage('car', '#2563eb'), parentId: null, active: true, order: 11, description: 'قطع صيانة واستهلاك متوافقة مع طرازات متعددة', icon: 'car' },
+  { id: 'c-auto-engine', name: 'المحرك والإشعال', image: categoryImage('tools', '#2563eb'), parentId: 'c-auto-parts', active: true, order: 1 },
+  { id: 'c-auto-brakes', name: 'الفرامل والتعليق', image: categoryImage('car', '#dc2626'), parentId: 'c-auto-parts', active: true, order: 2 },
+  { id: 'c-auto-filters', name: 'الفلاتر والصيانة', image: categoryImage('tools', '#059669'), parentId: 'c-auto-parts', active: true, order: 3 },
+  { id: 'c-auto-tires', name: 'الإطارات والعجلات', image: categoryImage('car', '#334155'), parentId: 'c-auto-parts', active: true, order: 4 },
+  { id: 'c-auto-oils', name: 'الزيوت والسوائل', image: categoryImage('beauty', '#d97706'), parentId: 'c-auto-parts', active: true, order: 5 },
+  { id: 'c-auto-electrical', name: 'كهرباء وإضاءة السيارات', image: categoryImage('car', '#7c3aed'), parentId: 'c-auto-parts', active: true, order: 6 },
+  { id: 'c-auto-accessories', name: 'إكسسوارات السيارات', image: categoryImage('car', '#0f766e'), parentId: 'c-auto-parts', active: true, order: 7 },
+  { id: 'c-fashion', name: 'الأزياء والملابس', nameEn: 'Fashion', image: categoryImage('shirt', '#db2777'), parentId: null, active: true, order: 12, description: 'ملابس وأحذية وإكسسوارات لجميع أفراد الأسرة', icon: 'shirt' },
+  { id: 'c-fashion-men', name: 'أزياء رجالية', image: categoryImage('shirt', '#2563eb'), parentId: 'c-fashion', active: true, order: 1 },
+  { id: 'c-fashion-women', name: 'أزياء نسائية', image: categoryImage('shirt', '#db2777'), parentId: 'c-fashion', active: true, order: 2 },
+  { id: 'c-fashion-shoes', name: 'الأحذية الرياضية واليومية', image: categoryImage('sports', '#7c3aed'), parentId: 'c-fashion', active: true, order: 3 },
+  { id: 'c-fashion-accessories', name: 'الحقائب والإكسسوارات', image: categoryImage('shirt', '#d97706'), parentId: 'c-fashion', active: true, order: 4 },
+  { id: 'c-industrial-tools', name: 'الأدوات والمعدات', nameEn: 'Tools & Equipment', image: categoryImage('tools', '#ea580c'), parentId: null, active: true, order: 13, description: 'عدد يدوية وكهربائية ومعدات السلامة والقياس', icon: 'tools' },
+  { id: 'c-tools-power', name: 'أدوات كهربائية', image: categoryImage('tools', '#ea580c'), parentId: 'c-industrial-tools', active: true, order: 1 },
+  { id: 'c-tools-hand', name: 'عدد يدوية', image: categoryImage('tools', '#475569'), parentId: 'c-industrial-tools', active: true, order: 2 },
+  { id: 'c-tools-safety', name: 'معدات السلامة', image: categoryImage('tools', '#16a34a'), parentId: 'c-industrial-tools', active: true, order: 3 },
+  { id: 'c-tools-measuring', name: 'أجهزة القياس والتركيب', image: categoryImage('tools', '#0891b2'), parentId: 'c-industrial-tools', active: true, order: 4 },
+  { id: 'c-tools-storage', name: 'التخزين والتنظيم', image: categoryImage('box', '#d97706'), parentId: 'c-industrial-tools', active: true, order: 5 },
+  { id: 'c-home-living', name: 'المنزل والمعيشة', nameEn: 'Home & Living', image: categoryImage('box', '#059669'), parentId: null, active: true, order: 14, description: 'مستلزمات عملية لتنظيم المنزل وتجهيزه', icon: 'home' },
+  { id: 'c-home-lighting', name: 'الإضاءة المنزلية', image: categoryImage('beauty', '#f59e0b'), parentId: 'c-home-living', active: true, order: 1 },
+  { id: 'c-home-storage', name: 'التخزين والتنظيم المنزلي', image: categoryImage('box', '#059669'), parentId: 'c-home-living', active: true, order: 2 },
+  { id: 'c-beauty', name: 'الجمال والعناية الشخصية', nameEn: 'Beauty & Care', image: categoryImage('beauty', '#ec4899'), parentId: null, active: true, order: 15, description: 'منتجات العناية والجمال للاستخدام اليومي', icon: 'beauty' },
+  { id: 'c-beauty-skincare', name: 'العناية بالبشرة', image: categoryImage('beauty', '#ec4899'), parentId: 'c-beauty', active: true, order: 1 },
+  { id: 'c-beauty-personal-care', name: 'العناية الشخصية والشعر', image: categoryImage('beauty', '#7c3aed'), parentId: 'c-beauty', active: true, order: 2 },
+  { id: 'c-digital', name: 'المنتجات الرقمية', nameEn: 'Digital Products', image: categoryImage('book', '#2563eb'), parentId: null, active: true, order: 16, description: 'محتوى وملفات رقمية قابلة للتسليم عبر الإنترنت', icon: 'book' },
+  { id: 'c-digital-downloads', name: 'كتب وملفات رقمية', image: categoryImage('book', '#2563eb'), parentId: 'c-digital', active: true, order: 1 },
+  { id: 'c-digital-subscriptions', name: 'اشتراكات رقمية', image: categoryImage('book', '#7c3aed'), parentId: 'c-digital', active: true, order: 2 },
+  { id: 'c-services', name: 'الخدمات والحجوزات', nameEn: 'Services', image: categoryImage('tools', '#0f766e'), parentId: null, active: true, order: 17, description: 'خدمات مهنية وصيانة وتركيب وحجوزات عبر الإنترنت', icon: 'tools' },
+  { id: 'c-services-auto', name: 'خدمات السيارات', image: categoryImage('car', '#0f766e'), parentId: 'c-services', active: true, order: 1 },
+  { id: 'c-services-home', name: 'المنزل والتركيب', image: categoryImage('tools', '#059669'), parentId: 'c-services', active: true, order: 2 },
+  { id: 'c-services-online', name: 'خدمات عن بُعد', image: categoryImage('book', '#2563eb'), parentId: 'c-services', active: true, order: 3 },
+  { id: 'c-services-repair', name: 'الصيانة والإصلاح', image: categoryImage('tools', '#ea580c'), parentId: 'c-services', active: true, order: 4 },
+  { id: 'c-sports', name: 'الرياضة واللياقة', nameEn: 'Sports & Fitness', image: categoryImage('sports', '#16a34a'), parentId: null, active: true, order: 18, description: 'معدات وأدوات للتمارين والأنشطة اليومية', icon: 'sports' },
+  { id: 'c-sports-fitness', name: 'معدات اللياقة', image: categoryImage('sports', '#16a34a'), parentId: 'c-sports', active: true, order: 1 },
+  { id: 'c-pets', name: 'الحيوانات الأليفة', nameEn: 'Pet Supplies', image: categoryImage('pet', '#f59e0b'), parentId: null, active: true, order: 19, description: 'مستلزمات العناية والتنقل والتغذية', icon: 'pet' },
+  { id: 'c-pets-travel', name: 'النقل والتنقل', image: categoryImage('pet', '#f59e0b'), parentId: 'c-pets', active: true, order: 1 },
+  { id: 'c-pets-feeding', name: 'التغذية والأوعية', image: categoryImage('pet', '#059669'), parentId: 'c-pets', active: true, order: 2 },
 ]
 
 /* --------------------------- العلامات التجارية --------------------------- */
@@ -75,10 +115,29 @@ const brandDefs: Array<[string, string]> = [
   ['DJI', '#111827'],
   ['Microsoft', '#5e5e5e'],
   ['Nintendo', '#e60012'],
+  ['Toyota', '#eb0a1e'],
+  ['NGK', '#dc2626'],
+  ['Michelin', '#1d4ed8'],
+  ['Castrol', '#16a34a'],
+  ['Nike', '#111827'],
+  ['Adidas', '#0f172a'],
+  ['Zara', '#111827'],
+  ['HM', '#dc2626'],
+  ['Makita', '#0284c7'],
+  ['DeWalt', '#eab308'],
+  ['Wera', '#dc2626'],
+  ['Milwaukee', '#dc2626'],
+  ['IKEA', '#1d4ed8'],
+  ['Loreal', '#be185d'],
+  ['Nivea', '#2563eb'],
+  ['Sawqli Digital', '#7c3aed'],
+  ['Sawqli Services', '#0f766e'],
+  ['FitLife', '#16a34a'],
+  ['PetCare', '#f59e0b'],
 ]
 
 export const seedBrands: Brand[] = brandDefs.map(([name, color], i) => ({
-  id: `b-${name.toLowerCase()}`,
+  id: `b-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
   name,
   logo: brandLogo(name, color),
   active: true,
@@ -189,7 +248,7 @@ const ratingAggregates = seedReviews.reduce<Record<string, { total: number; coun
   return acc
 }, {})
 
-export const seedProducts: Product[] = catalogProductsWithRelations.map((product) => {
+export const seedProducts: Product[] = [...catalogProductsWithRelations, ...expandedCatalogProducts].map((product) => {
   const aggregate = ratingAggregates[product.id]
   if (!aggregate) return product
   return {
@@ -555,6 +614,7 @@ export const seedPages: StaticPage[] = [
 
 /* ------------------------------ الإعدادات ------------------------------ */
 export const seedSettings: Settings = {
+  schemaVersion: 3,
   storeName: 'سوقلي',
   logoText: 'سوقلي',
   copyright: '© 2026 سوقلي. جميع الحقوق محفوظة.',
@@ -622,6 +682,30 @@ export const seedSettings: Settings = {
     { id: 'sec-brands', kind: 'brands', title: 'تسوق حسب العلامة التجارية', layout: 'row', enabled: true, order: 6 },
     { id: 'sec-audio', kind: 'custom', title: 'سماعات وأجهزة صوتية', layout: 'row', enabled: true, order: 7, limit: 8, filter: { categoryIds: ['c-audio'] } },
     { id: 'sec-gaming', kind: 'custom', title: 'عالم الألعاب', layout: 'row', enabled: true, order: 8, limit: 6, filter: { categoryIds: ['c-gaming'] } },
+    { id: 'sec-auto', kind: 'custom', title: 'قطع غيار ومستلزمات السيارات', layout: 'row', enabled: true, order: 9, limit: 6, filter: { categoryIds: ['c-auto-parts'] } },
+    { id: 'sec-fashion', kind: 'custom', title: 'الأزياء والإكسسوارات', layout: 'row', enabled: true, order: 10, limit: 6, filter: { categoryIds: ['c-fashion'] } },
+    { id: 'sec-tools', kind: 'custom', title: 'الأدوات والمعدات', layout: 'row', enabled: true, order: 11, limit: 6, filter: { categoryIds: ['c-industrial-tools'] } },
+    { id: 'sec-digital', kind: 'custom', title: 'منتجات رقمية وخدمات', layout: 'row', enabled: true, order: 12, limit: 6, filter: { categoryIds: ['c-digital', 'c-services'] } },
+  ],
+  announcementBar: {
+    enabled: true,
+    text: 'تسوّق منتجات متنوعة وخدمات تُحجز بسهولة من مكان واحد',
+    target: '/categories',
+    background: '#7c3aed',
+    foreground: '#ffffff',
+  },
+  navigationItems: [
+    { id: 'nav-home', label: 'الرئيسية', path: '/', icon: 'home', enabled: true },
+    { id: 'nav-categories', label: 'الأقسام', path: '/categories', icon: 'categories', enabled: true },
+    { id: 'nav-offers', label: 'العروض', path: '/offers', icon: 'offers', enabled: true },
+    { id: 'nav-orders', label: 'طلباتي', path: '/orders', icon: 'orders', enabled: true, requiresAuth: true },
+    { id: 'nav-account', label: 'حسابي', path: '/account', icon: 'account', enabled: true, requiresAuth: true },
+  ],
+  footerLinks: [
+    { id: 'footer-about', label: 'عن المتجر', path: '/pages/about', enabled: true },
+    { id: 'footer-faq', label: 'الأسئلة الشائعة', path: '/pages/faq', enabled: true },
+    { id: 'footer-contact', label: 'تواصل معنا', path: '/pages/contact', enabled: true },
+    { id: 'footer-terms', label: 'الشروط والأحكام', path: '/pages/terms', enabled: true },
   ],
   technical: {
     maintenanceMode: false,

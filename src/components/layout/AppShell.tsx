@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { CloudOff, Wifi, WifiOff } from 'lucide-react'
-import { Outlet } from 'react-router-dom'
+import { ArrowLeft, CloudOff, Wifi, WifiOff, X } from 'lucide-react'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Button } from '@/components/ui/Button'
@@ -59,6 +59,10 @@ function MaintenanceScreen() {
 
 export function AppShell() {
   const { settings } = useAppData()
+  const location = useLocation()
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false)
+  const announcement = settings.announcementBar
+  const showAnnouncement = Boolean(announcement?.enabled && announcement.text.trim() && !announcementDismissed && !location.pathname.startsWith('/admin'))
 
   if (settings.technical.maintenanceMode) {
     return (
@@ -74,6 +78,18 @@ export function AppShell() {
     <div className="flex min-h-dvh justify-center bg-page">
       <div className="app-frame flex h-dvh flex-col overflow-hidden">
         <OfflineBar />
+        {showAnnouncement && announcement && (
+          <div className="relative flex shrink-0 items-center justify-center gap-2 px-10 py-2 text-center text-[11.5px] font-bold leading-5" style={{ backgroundColor: announcement.background, color: announcement.foreground }}>
+            {announcement.target?.startsWith('/') ? (
+              <Link to={announcement.target} className="flex min-w-0 items-center justify-center gap-1.5">
+                <span>{announcement.text}</span><ArrowLeft className="size-3.5 shrink-0" />
+              </Link>
+            ) : <span>{announcement.text}</span>}
+            <button type="button" aria-label="إغلاق الإعلان" onClick={() => setAnnouncementDismissed(true)} className="absolute end-2 top-1/2 -translate-y-1/2 rounded-full p-1 opacity-80 hover:opacity-100">
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
         <ExpiredSessionModal />
         <div className="flex min-h-0 flex-1 flex-col">
           <Outlet />

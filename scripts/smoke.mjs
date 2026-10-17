@@ -134,6 +134,7 @@ const routes = [
   '/admin/reviews',
   '/admin/coupons',
   '/admin/banners',
+  '/admin/cms',
   '/admin/reports',
   '/admin/notifications',
   '/admin/settings',

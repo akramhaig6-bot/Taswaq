@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileQuestion } from 'lucide-react'
 import { Screen } from '@/components/layout/Screen'
@@ -11,6 +12,12 @@ export default function StaticPageView() {
   const { t } = useLang()
   const { pages, settings } = useAppData()
   const page = pages.items.find((item) => item.slug === slug && item.active)
+
+  useEffect(() => {
+    document.title = page ? `${page.seoTitle || page.title} — ${settings.storeName}` : settings.storeName
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+    if (description) description.content = page?.seoDescription || page?.content.slice(0, 155) || ''
+  }, [page?.content, page?.seoDescription, page?.seoTitle, page?.title, settings.storeName])
 
   if (!page) {
     return (
