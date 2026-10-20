@@ -78,7 +78,8 @@ export interface OrderDraft {
   customerPhone: string
   items: CartItem[]
   address?: Address
-  paymentMethodId: string
+  /** Legacy payment-method flow — omitted for WhatsApp-based ordering. */
+  paymentMethodId?: string
   shippingMethodId?: string
   couponCode?: string
   note?: string
@@ -279,8 +280,11 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
       if (draft.items.length === 0) {
         return serviceFail<Order>('السلة فارغة. أضف منتجات قبل إتمام الطلب.', 'EMPTY_CART')
       }
-      const payment = settings.paymentMethods.find((item) => item.id === draft.paymentMethodId)
-      if (!payment || !payment.enabled) {
+      /* الطلبات تُؤكَّد الآن عبر واتساب؛ تبقى طرق الدفع في لوحة الإدارة للتوافق فقط. */
+      const payment = draft.paymentMethodId
+        ? settings.paymentMethods.find((item) => item.id === draft.paymentMethodId)
+        : undefined
+      if (draft.paymentMethodId && (!payment || !payment.enabled)) {
         return serviceFail<Order>('طريقة الدفع غير متاحة حاليًا. اختر طريقة أخرى.', 'PAYMENT_UNAVAILABLE')
       }
 
@@ -299,7 +303,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
       if (hasShippableItems && !shipping) {
         return serviceFail<Order>('طريقة الشحن غير متاحة حاليًا. اختر طريقة أخرى.', 'SHIPPING_UNAVAILABLE')
       }
-      if (!hasShippableItems && payment.kind === 'cod') {
+      if (!hasShippableItems && payment?.kind === 'cod') {
         return serviceFail<Order>('اختر طريقة دفع إلكترونية لهذا الطلب.', 'PAYMENT_UNAVAILABLE')
       }
       const missing = lines.find(
@@ -315,8 +319,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
       await wait(700, 1200)
 
-      /* محاكاة رفض عملية الدفع لبطاقات الاختبار */
-      if (payment.kind === 'card' && draft.cardNumber?.replace(/\s/g, '').startsWith('4000')) {
+      /* محاكاة رفض عملية الدفع لبطاقات الاختبار (للمسار القديم فقط) */
+      if (payment?.kind === 'card' && draft.cardNumber?.replace(/\s/g, '').startsWith('4000')) {
         return serviceFail<Order>(
           'فشلت عملية الدفع. تحقق من بيانات البطاقة وحاول مرة أخرى.',
           'PAYMENT_DECLINED',
@@ -360,9 +364,9 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         customerPhone: draft.address?.phone || draft.customerPhone,
         items: orderItems,
         address: draft.address,
-        paymentMethodId: payment.id,
-        paymentMethodName: payment.name,
-        paymentStatus: payment.kind === 'cod' || payment.kind === 'bank' ? 'pending' : 'paid',
+        paymentMethodId: payment?.id ?? 'whatsapp',
+        paymentMethodName: payment?.name ?? 'تأكيد الطلب عبر واتساب',
+        paymentStatus: payment ? (payment.kind === 'cod' || payment.kind === 'bank' ? 'pending' : 'paid') : 'pending',
         shippingMethod: shipping?.name ?? 'تسليم رقمي / تنفيذ الخدمة',
         subtotal: totals.subtotal,
         discount: totals.discount,

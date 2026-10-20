@@ -24,7 +24,6 @@ const Wishlist = lazy(() => import('@/pages/customer/Wishlist'))
 const Account = lazy(() => import('@/pages/customer/Account'))
 const EditProfile = lazy(() => import('@/pages/customer/EditProfile'))
 const Addresses = lazy(() => import('@/pages/customer/Addresses'))
-const PaymentMethods = lazy(() => import('@/pages/customer/PaymentMethods'))
 const Notifications = lazy(() => import('@/pages/customer/Notifications'))
 const Offers = lazy(() => import('@/pages/customer/Offers'))
 const ForgotPassword = lazy(() => import('@/pages/customer/ForgotPassword'))
@@ -199,14 +198,8 @@ export default function App() {
                 </Protected>
               }
             />
-            <Route
-              path="account/payment-methods"
-              element={
-                <Protected>
-                  <PaymentMethods />
-                </Protected>
-              }
-            />
+            {/* أُزيلت طرق الدفع من واجهة العميل — تحويل الروابط القديمة للحساب */}
+            <Route path="account/payment-methods" element={<Navigate to="/account" replace />} />
             <Route path="account/notifications" element={<Notifications />} />
             <Route path="offers" element={<Offers />} />
             <Route path="login" element={<Auth />} />

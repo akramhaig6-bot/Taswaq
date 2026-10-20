@@ -1,15 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ComponentType } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   ChevronLeft,
-  CreditCard,
   FileText,
   Globe,
   Heart,
   Info,
   LogOut,
   MapPin,
+  MessageCircle,
   Package,
   Pencil,
   Phone,
@@ -28,6 +28,17 @@ import { useAuth } from '@/store/AuthContext'
 import { useLang } from '@/store/LanguageContext'
 import { useToast } from '@/store/ToastContext'
 import { useWishlist } from '@/store/WishlistContext'
+import { openWhatsApp } from '@/lib/whatsapp'
+
+type AccountRow = {
+  key: string
+  label: string
+  icon: ComponentType<{ className?: string }>
+  to?: string
+  action?: () => void
+  hint?: string
+  auth?: boolean
+}
 
 export default function Account() {
   const navigate = useNavigate()
@@ -49,11 +60,11 @@ export default function Account() {
 
   const activeLanguages = settings.languages.filter((language) => language.active)
 
-  const rows = [
+  const rows: AccountRow[] = [
     { key: 'orders', label: 'طلباتي', icon: Package, to: '/orders', hint: myOrders.length ? `${myOrders.length} طلب` : undefined, auth: true },
     { key: 'wishlist', label: 'المفضلة', icon: Heart, to: '/wishlist', hint: wishlist.count ? `${wishlist.count} منتج` : undefined, auth: true },
     { key: 'addresses', label: 'عناويني', icon: MapPin, to: '/account/addresses', hint: user?.addresses.length ? `${user.addresses.length}` : undefined, auth: true },
-    { key: 'cards', label: 'طرق الدفع المحفوظة', icon: CreditCard, to: '/account/payment-methods', auth: true },
+    { key: 'whatsapp', label: 'تواصل عبر واتساب', icon: MessageCircle, action: () => openWhatsApp(`مرحبًا، أحتاج إلى مساعدة من خدمة عملاء ${settings.storeName}.`, settings.contact.whatsapp), hint: '24 ساعة' },
     { key: 'notifications', label: 'الإشعارات', icon: Bell, to: '/account/notifications', hint: unread ? `${unread} جديد` : undefined },
     { key: 'language', label: 'اللغة', icon: Globe, action: () => setLangSheet(true), hint: lang === 'ar' ? 'العربية' : 'English' },
     ...pages.items

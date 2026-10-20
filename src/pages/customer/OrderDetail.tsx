@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Check, Copy, Download, ExternalLink, Headphones, Package, RotateCcw, Star, X } from 'lucide-react'
 import type { Product } from '@/types'
-import { CANCEL_REASONS, paymentStatusLabel } from '@/lib/orders'
+import { CANCEL_REASONS } from '@/lib/orders'
 import { cn, copyToClipboard, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
 import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
@@ -233,9 +233,7 @@ export default function OrderDetail() {
                   {deliveryType && (
                     <div className="rounded-xl border border-brand/10 bg-brand-soft/40 p-3">
                       <p className="text-[12px] font-bold text-brand">{item.kind === 'digital' ? 'المحتوى الرقمي' : 'تعليمات تنفيذ الخدمة'}</p>
-                      {order.paymentStatus !== 'paid' ? (
-                        <p className="mt-1 text-[11.5px] leading-5 text-gray-600">ستظهر تفاصيل التسليم بعد تأكيد الدفع.</p>
-                      ) : content ? (
+                      {content ? (
                         <>
                           {contentUrl ? (
                             <a href={contentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-brand underline">
@@ -284,7 +282,7 @@ export default function OrderDetail() {
             </li>
             {order.codFee > 0 && (
               <li className="flex justify-between">
-                <span>رسوم الدفع عند الاستلام</span>
+                <span>رسوم إضافية</span>
                 <span className="font-semibold">{formatPrice(order.codFee, settings.currency)}</span>
               </li>
             )}
@@ -300,13 +298,6 @@ export default function OrderDetail() {
             <span className="text-[13.5px] font-bold text-gray-800">المجموع الكلي</span>
             <PriceTag price={order.total} currency={settings.currency} size="lg" />
           </div>
-        </section>
-
-        {/* طريقة الدفع */}
-        <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
-          <h3 className="mb-1.5 text-[14px] font-extrabold text-gray-900">طريقة الدفع</h3>
-          <p className="text-[12.5px] text-gray-600">{order.paymentMethodName}</p>
-          <p className="mt-1 text-[12px] font-semibold text-gray-500">{paymentStatusLabel(order)}</p>
         </section>
 
         {order.note && (

@@ -147,24 +147,58 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   /* ترحيل البيانات المحلية القديمة مع الإبقاء على كل تعديلات صاحب المتجر. */
   useEffect(() => {
-    if ((storedSettings.schemaVersion ?? 0) >= 3) return
-    categories.set((current) => mergeMissingSeeds(current, seedCategories))
-    brands.set((current) => mergeMissingSeeds(current, seedBrands))
-    products.set((current) => mergeMissingSeeds(current, seedProducts))
+    const previousVersion = storedSettings.schemaVersion ?? 0
+    if (previousVersion >= 4) return
+
+    /* لا نعيد إضافة عناصر حذفها صاحب المتجر — فقط نكمل ترحيل v3 لمن لم يمر به. */
+    if (previousVersion < 3) {
+      categories.set((current) => mergeMissingSeeds(current, seedCategories))
+      brands.set((current) => mergeMissingSeeds(current, seedBrands))
+      products.set((current) => mergeMissingSeeds(current, seedProducts))
+    }
+
     pages.set((current) => {
-      const merged = mergeMissingSeeds(current, seedPages)
-      return merged.map((page) => {
+      const base = previousVersion < 3 ? mergeMissingSeeds(current, seedPages) : current
+      /* صفحة التواصل مطلوبة دائمًا، ونعيدها فقط إذا كانت محذوفة */
+      const withContact = base.some((page) => page.id === 'pg-contact')
+        ? base
+        : [...base, ...seedPages.filter((page) => page.id === 'pg-contact')]
+      return withContact.map((page) => {
         const seedPage = seedPages.find((seed) => seed.id === page.id)
-        return seedPage ? { ...seedPage, ...page, seoTitle: page.seoTitle ?? seedPage.seoTitle } : page
+        if (!seedPage) return page
+        /* إزالة أي محتوى قديم يذكر طرق الدفع، وتحديث صفحة التواصل لأوقات 24 ساعة */
+        const stalePaymentContent = /الدفع عند الاستلام|الدفع بالبطاقة|بيانات الدفع|وسيلة الدفع|عملية الدفع|طرق الدفع/.test(page.content)
+        const content = page.id === 'pg-contact' || stalePaymentContent ? seedPage.content : page.content
+        return { ...seedPage, ...page, content, seoTitle: page.seoTitle ?? seedPage.seoTitle }
       })
     })
+
     setSettings((previous) => {
       const current = mergeSettings(previous)
-      const added = seedSettings.sections.filter((section) => !current.sections.some((item) => item.id === section.id))
+      /* تحديث أرقام التواصل القديمة إلى رقم واتساب المتجر الرسمي */
+      const digits = (value: string) => value.replace(/\D/g, '')
+      const isLegacyNumber = (value: string) => ['0551234567', '966551234567'].includes(digits(value))
+      const contact = {
+        ...current.contact,
+        phone: isLegacyNumber(current.contact.phone) ? seedSettings.contact.phone : current.contact.phone,
+        whatsapp: isLegacyNumber(current.contact.whatsapp) ? seedSettings.contact.whatsapp : current.contact.whatsapp,
+      }
+      const technical = {
+        ...current.technical,
+        supportPhone: isLegacyNumber(current.technical.supportPhone)
+          ? seedSettings.technical.supportPhone
+          : current.technical.supportPhone,
+      }
+      const added =
+        previousVersion < 3
+          ? seedSettings.sections.filter((section) => !current.sections.some((item) => item.id === section.id))
+          : []
       const startOrder = current.sections.reduce((max, section) => Math.max(max, section.order), 0)
       return mergeSettings({
         ...current,
-        schemaVersion: 3,
+        schemaVersion: 4,
+        contact,
+        technical,
         sections: [...current.sections, ...added.map((section, index) => ({ ...section, order: startOrder + index + 1 }))],
       })
     })

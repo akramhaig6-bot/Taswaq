@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, Copy, Package } from 'lucide-react'
+import { Check, Copy, MessageCircle, Package } from 'lucide-react'
 import { formatDate, formatPrice, copyToClipboard } from '@/lib/utils'
 import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/display'
+import { buildOrderMessage, openWhatsApp } from '@/lib/whatsapp'
 import { useAppData } from '@/store/AppDataContext'
 import { useLang } from '@/store/LanguageContext'
 import { useToast } from '@/store/ToastContext'
@@ -53,7 +54,7 @@ export default function OrderSuccess() {
 
   const order = orders.items.find((item) => item.id === id)
 
-  /* زر الرجوع في المتصفح يعود للشاشة الرئيسية بدلًا من شاشة الدفع */
+  /* زر الرجوع في المتصفح يعود للشاشة الرئيسية بدلًا من شاشة إتمام الطلب */
   useEffect(() => {
     window.history.pushState(null, '', window.location.href)
     const onPop = () => navigate('/', { replace: true })
@@ -85,9 +86,7 @@ export default function OrderSuccess() {
           </h1>
           <p className="max-w-xs text-[13px] leading-6 text-gray-500">
             {hasDigitalOrService
-              ? order.paymentStatus === 'paid'
-                ? 'تم تأكيد طلبك. افتح تفاصيل الطلب لمراجعة المحتوى الرقمي أو تعليمات تنفيذ الخدمة.'
-                : 'تم استلام طلبك. ستظهر تفاصيل التسليم بعد تأكيد الدفع.'
+              ? 'تم تأكيد طلبك. افتح تفاصيل الطلب لمراجعة المحتوى الرقمي أو تعليمات تنفيذ الخدمة.'
               : t('order.success.body', 'شكرًا لتسوقك معنا. سنعمل على تجهيز طلبك في أقرب وقت.')}
           </p>
         </div>
@@ -115,10 +114,6 @@ export default function OrderSuccess() {
             <dt className="text-gray-500">المبلغ الإجمالي</dt>
             <dd className="font-extrabold text-gray-900">{formatPrice(order.total, settings.currency)}</dd>
           </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-gray-500">طريقة الدفع</dt>
-            <dd className="font-semibold text-gray-800">{order.paymentMethodName}</dd>
-          </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="shrink-0 text-gray-500">{order.address ? 'عنوان التوصيل' : 'التسليم'}</dt>
             <dd className="truncate text-end font-semibold text-gray-800">
@@ -135,7 +130,21 @@ export default function OrderSuccess() {
           <Button fullWidth size="lg" onClick={() => navigate(`/orders/${order.id}`)}>
             {hasDigitalOrService ? 'عرض تفاصيل الطلب' : 'تتبع الطلب'}
           </Button>
-          <Button fullWidth size="lg" variant="outline" onClick={() => navigate('/', { replace: true })}>
+          <Button
+            fullWidth
+            size="lg"
+            variant="outline"
+            icon={<MessageCircle className="size-4" />}
+            onClick={() =>
+              openWhatsApp(
+                buildOrderMessage(order, { storeName: settings.storeName, currency: settings.currency }),
+                settings.contact.whatsapp,
+              )
+            }
+          >
+            إرسال تفاصيل الطلب عبر واتساب
+          </Button>
+          <Button fullWidth size="lg" variant="ghost" onClick={() => navigate('/', { replace: true })}>
             متابعة التسوق
           </Button>
         </div>
