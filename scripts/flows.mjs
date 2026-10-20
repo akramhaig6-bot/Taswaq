@@ -123,6 +123,8 @@ async function boot(path, seed = {}) {
   }
   globalThis.scrollTo = () => {}
   window.scrollTo = () => {}
+  /* jsdom لا يفتح نوافذ حقيقية — نكتفي بالتقاط الرابط عند الحاجة */
+  window.open = () => ({ closed: false, focus() {}, close() {} })
   /* jsdom لا يوفّر scrollTo/scrollIntoView على العناصر */
   window.Element.prototype.scrollTo = function scrollTo() {}
   window.Element.prototype.scrollIntoView = function scrollIntoView() {}
@@ -255,7 +257,127 @@ const record = (name, ok, detail = '') => {
   await server.close()
 }
 
-/* --------------------------- 3) شاشة الدفع للعميل المسجّل --------------------------- */
+/* ------------- 2ب) «اشترِ الآن» يحوّل مباشرة إلى واتساب المتجر ------------- */
+{
+  const { window, server, act } = await boot('/product/p-1', testFixtures())
+  try {
+    await act(async () => {
+      await sleep(600)
+    })
+    let buyButton = findByText(window, 'اشترِ الآن', 'button')
+    for (let attempt = 0; attempt < 10 && !buyButton; attempt++) {
+      await act(async () => {
+        await sleep(300)
+      })
+      buyButton = findByText(window, 'اشترِ الآن', 'button')
+    }
+    if (!buyButton) throw new Error('لم يتم العثور على زر اشترِ الآن')
+
+    let openedUrl = ''
+    window.open = (url) => {
+      openedUrl = String(url)
+      return { closed: false, focus() {}, close() {} }
+    }
+    await act(async () => {
+      click(window, buyButton)
+    })
+    await act(async () => {
+      await sleep(300)
+    })
+    const text = window.document.body.textContent ?? ''
+    const numberVisible = text.includes('966574028968') || text.includes('57 402 8968') || text.includes('+966')
+    const ok = openedUrl.startsWith('https://wa.me/966574028968') && !numberVisible
+    record(
+      '«اشترِ الآن» يفتح واتساب مباشرة',
+      ok,
+      ok ? 'تم فتح محادثة واتساب الرسمية دون إظهار الرقم' : `الرابط: ${openedUrl || 'لم يُفتح'} — رقم ظاهر: ${numberVisible}`,
+    )
+  } catch (error) {
+    record('«اشترِ الآن» يفتح واتساب مباشرة', false, String(error?.message ?? error))
+  }
+  await sleep(300)
+  await server.close()
+}
+
+/* ------------- 2ج) صفحة تواصل معنا: زر واتساب وأوقات 24 ساعة ------------- */
+{
+  const { window, server, act } = await boot('/pages/contact', testFixtures())
+  try {
+    await act(async () => {
+      await sleep(500)
+    })
+    const text = window.document.body.textContent ?? ''
+    const link = window.document.querySelector('a[href^="https://wa.me/966574028968"]')
+    const numberVisible = text.includes('966574028968') || text.includes('57 402 8968') || text.includes('+966')
+    const oldHoursVisible = text.includes('9 صباحًا') || text.includes('الأحد إلى الخميس')
+    const ok = Boolean(link) && text.includes('24 ساعة') && !numberVisible && !oldHoursVisible
+    record(
+      'تواصل معنا: زر واتساب وأوقات 24 ساعة',
+      ok,
+      ok ? 'الزر يفتح واتساب الرسمي والرقم غير معروض' : `الزر: ${Boolean(link)} — 24 ساعة: ${text.includes('24 ساعة')} — رقم ظاهر: ${numberVisible} — أوقات قديمة: ${oldHoursVisible}`,
+    )
+  } catch (error) {
+    record('تواصل معنا: زر واتساب وأوقات 24 ساعة', false, String(error?.message ?? error))
+  }
+  await sleep(300)
+  await server.close()
+}
+
+/* ------------- 2د) إزالة طرق الدفع من واجهة العميل ------------- */
+{
+  const { window, server, act } = await boot('/account', {
+    ...testFixtures(),
+    [`sawqli.${STORAGE_VERSION}.session.customer`]: '"u-1"',
+    [`sawqli.${STORAGE_VERSION}.session.expiresAt`]: String(Date.now() + 3600000),
+  })
+  try {
+    await act(async () => {
+      await sleep(600)
+    })
+    const text = window.document.body.textContent ?? ''
+    const ok = !text.includes('طرق الدفع') && !text.includes('بطاقة')
+    record('إزالة طرق الدفع من واجهة العميل', ok, ok ? 'لا توجد روابط أو نصوص لطرق الدفع' : 'ما زال هناك ذكر لطرق الدفع')
+  } catch (error) {
+    record('إزالة طرق الدفع من واجهة العميل', false, String(error?.message ?? error))
+  }
+  await sleep(300)
+  await server.close()
+}
+
+/* ------------- 2هـ) ترحيل رقم التواصل القديم إلى رقم واتساب الرسمي ------------- */
+{
+  const { window, server, act } = await boot('/pages/contact', {
+    ...testFixtures(),
+    [`sawqli.${STORAGE_VERSION}.settings`]: JSON.stringify({
+      schemaVersion: 3,
+      contact: { phone: '0551234567', whatsapp: '0551234567', email: 'support@sawqli.sa', address: 'الرياض' },
+      technical: { supportPhone: '0551234567' },
+    }),
+  })
+  try {
+    await act(async () => {
+      await sleep(700)
+    })
+    const link = window.document.querySelector('a[href^="https://wa.me/966574028968"]')
+    const stored = JSON.parse(window.localStorage.getItem(`sawqli.${STORAGE_VERSION}.settings`) ?? '{}')
+    const migrated =
+      stored.schemaVersion === 4 &&
+      stored.contact?.whatsapp === '+966 57 402 8968' &&
+      stored.technical?.supportPhone === '+966 57 402 8968'
+    const ok = Boolean(link) && migrated
+    record(
+      'ترحيل رقم واتساب القديم تلقائيًا',
+      ok,
+      ok ? 'تم تحديث الإعدادات المحفوظة إلى الرقم الرسمي' : `الرابط: ${Boolean(link)} — الإصدار: ${stored.schemaVersion} — الرقم: ${stored.contact?.whatsapp}`,
+    )
+  } catch (error) {
+    record('ترحيل رقم واتساب القديم تلقائيًا', false, String(error?.message ?? error))
+  }
+  await sleep(300)
+  await server.close()
+}
+
+/* --------------------------- 3) شاشة إتمام الطلب للعميل المسجّل --------------------------- */
 {
   const { window, server, act } = await boot('/checkout', {
     ...testFixtures(),
@@ -270,10 +392,10 @@ const record = (name, ok, detail = '') => {
     const text = window.document.body.textContent ?? ''
     const onCheckout = window.location.pathname === '/checkout'
     const hasShipping = text.includes('الشحن') || text.includes('العنوان')
-    record('فتح شاشة الدفع للعميل المسجّل', onCheckout && hasShipping, `المسار: ${window.location.pathname}`)
+    record('فتح شاشة إتمام الطلب للعميل المسجّل', onCheckout && hasShipping, `المسار: ${window.location.pathname}`)
 
-    const nextButton = findByText(window, 'التالي', 'button') ?? findByText(window, 'متابعة', 'button')
-    if (!nextButton) throw new Error('لم يتم العثور على زر الخطوة التالية')
+    const nextButton = findByText(window, 'متابعة إلى المراجعة', 'button')
+    if (!nextButton) throw new Error('لم يتم العثور على زر متابعة إلى المراجعة')
     await act(async () => {
       click(window, nextButton)
     })
@@ -281,9 +403,14 @@ const record = (name, ok, detail = '') => {
       await sleep(400)
     })
     const afterText = window.document.body.textContent ?? ''
-    record('الانتقال للخطوة الثانية', afterText.includes('الدفع'), `طول الصفحة: ${afterText.length}`)
+    const noPayment = !afterText.includes('طريقة الدفع') && !afterText.includes('الدفع عند الاستلام')
+    record(
+      'الانتقال إلى خطوة المراجعة دون طرق دفع',
+      afterText.includes('إرسال الطلب عبر واتساب') && noPayment,
+      `طول الصفحة: ${afterText.length} — خالية من الدفع: ${noPayment}`,
+    )
   } catch (error) {
-    record('فتح شاشة الدفع للعميل المسجّل', false, String(error?.message ?? error))
+    record('فتح شاشة إتمام الطلب للعميل المسجّل', false, String(error?.message ?? error))
   }
   /* إتاحة وقت تحميل حزم الصفحات المؤجلة قبل إغلاق الخادم */
   await sleep(500)
@@ -478,7 +605,7 @@ const record = (name, ok, detail = '') => {
   await server.close()
 }
 
-/* ------- 9) رحلة شراء كاملة: سلة → دفع → مراجعة → تأكيد الطلب ------- */
+/* ------- 9) رحلة شراء كاملة: سلة → مراجعة → تأكيد الطلب عبر واتساب ------- */
 {
   const { window, server, act } = await boot('/checkout', {
     ...testFixtures(),
@@ -509,23 +636,10 @@ const record = (name, ok, detail = '') => {
       return node
     }
 
-    /* الخطوة 1: العنوان (يُنتقى الافتراضي تلقائيًا) → الدفع */
-    await clickByText('متابعة إلى الدفع')
-
-    /* الخطوة 2: اختيار الدفع عند الاستلام لتجنّب حقول البطاقة */
-    const cod = Array.from(window.document.querySelectorAll('button')).find((node) =>
-      (node.textContent ?? '').includes('الدفع عند الاستلام'),
-    )
-    if (!cod) throw new Error('لم يتم العثور على طريقة «الدفع عند الاستلام»')
-    await act(async () => {
-      click(window, cod)
-    })
-    await act(async () => {
-      await sleep(400)
-    })
+    /* الخطوة 1: العنوان (يُنتقى الافتراضي تلقائيًا) → المراجعة */
     await clickByText('متابعة إلى المراجعة')
 
-    /* الخطوة 3: الموافقة على الشروط ثم التأكيد */
+    /* الخطوة 2: الموافقة على الشروط ثم الإرسال عبر واتساب */
     const agreeBox = Array.from(window.document.querySelectorAll('button[role="checkbox"]')).find((node) =>
       (node.textContent ?? '').includes('أوافق على'),
     )
@@ -537,9 +651,9 @@ const record = (name, ok, detail = '') => {
       await sleep(300)
     })
 
-    await clickByText('تأكيد الطلب')
+    await clickByText('إرسال الطلب عبر واتساب')
 
-    /* طبقة الخدمات تُحاكي زمن معالجة الدفع (700–1200ms) قبل إنشاء الطلب */
+    /* طبقة الخدمات تُحاكي زمن معالجة الطلب (700–1200ms) قبل إنشائه */
     await act(async () => {
       await sleep(2800)
     })
@@ -647,27 +761,22 @@ const record = (name, ok, detail = '') => {
   try {
     const text = window.document.body.textContent ?? ''
     if (!text.includes('التسليم الرقمي أو تنفيذ الخدمة')) throw new Error('لم تظهر خطوات التسليم الرقمي')
-    const continueButton = findByText(window, 'متابعة إلى الدفع', 'button')
-    if (!continueButton) throw new Error('لم يتم العثور على زر الانتقال للدفع')
+    const continueButton = findByText(window, 'متابعة إلى المراجعة', 'button')
+    if (!continueButton) throw new Error('لم يتم العثور على زر الانتقال للمراجعة')
     await act(async () => click(window, continueButton))
     await act(async () => sleep(350))
-    const codButton = findByText(window, 'الدفع عند الاستلام', 'button')
-    if (codButton) throw new Error('ظهرت طريقة الدفع عند الاستلام لطلب رقمي')
-    const wallet = findByText(window, 'محفظة إلكترونية', 'button')
-    if (!wallet) throw new Error('لم تتوفر وسيلة دفع إلكترونية')
-    await act(async () => click(window, wallet))
-    await act(async () => sleep(200))
-    const review = findByText(window, 'متابعة إلى المراجعة', 'button')
-    if (!review) throw new Error('لم يظهر زر مراجعة الطلب')
-    await act(async () => click(window, review))
-    await act(async () => sleep(250))
+    const afterText = window.document.body.textContent ?? ''
+    if (afterText.includes('طريقة الدفع') || afterText.includes('الدفع عند الاستلام')) {
+      throw new Error('ظهرت خيارات دفع لطلب رقمي')
+    }
     const agree = Array.from(window.document.querySelectorAll('button[role="checkbox"]')).find((node) =>
       (node.textContent ?? '').includes('أوافق على'),
     )
     if (!agree) throw new Error('لم يظهر تأكيد الشروط')
     await act(async () => click(window, agree))
-    const confirm = findByText(window, 'تأكيد الطلب', 'button')
-    if (!confirm) throw new Error('لم يظهر زر تأكيد الطلب')
+    await act(async () => sleep(150))
+    const confirm = findByText(window, 'إرسال الطلب عبر واتساب', 'button')
+    if (!confirm) throw new Error('لم يظهر زر إرسال الطلب عبر واتساب')
     await act(async () => click(window, confirm))
     for (let attempt = 0; attempt < 15 && !(window.document.body.textContent ?? '').includes('تم استلام طلبك'); attempt++) {
       await act(async () => sleep(400))

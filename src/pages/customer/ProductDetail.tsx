@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, Check, Download, PackageSearch, ShoppingCart, X } from 'lucide-react'
 import type { Product, ProductOption } from '@/types'
-import { cn, formatNumber } from '@/lib/utils'
-import { discountPercent, isDiscountActive, isOutOfStock, requiresShipping, unitPrice } from '@/lib/pricing'
+import { cn, formatNumber, formatPrice } from '@/lib/utils'
+import { discountPercent, isDiscountActive, isOutOfStock, optionsLabel, requiresShipping, unitPrice } from '@/lib/pricing'
+import { openWhatsApp } from '@/lib/whatsapp'
 import { Screen } from '@/components/layout/Screen'
 import { ProductGallery } from '@/components/customer/Gallery'
 import { ReviewsSection } from '@/components/customer/Reviews'
@@ -13,7 +14,6 @@ import { Badge, EmptyState, ExpandableText, PriceTag, QuantityStepper, Rating, S
 import { useAppData } from '@/store/AppDataContext'
 import { useCart } from '@/store/CartContext'
 import { useToast } from '@/store/ToastContext'
-import { useAuth } from '@/store/AuthContext'
 
 function DetailSkeleton() {
   return (
@@ -35,7 +35,6 @@ export default function ProductDetail() {
   const { getProduct, getBrand, products, settings, reviews } = useAppData()
   const { addToCart } = useCart()
   const { showToast } = useToast()
-  const { isAuthenticated } = useAuth()
 
   const product = getProduct(id)
   const brand = getBrand(product?.brandId)
@@ -46,7 +45,6 @@ export default function ProductDetail() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
-  const [buying, setBuying] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -158,16 +156,23 @@ export default function ProductDetail() {
     doAdd()
   }
 
+  /** «اشترِ الآن» يفتح واتساب المتجر مباشرة برسالة جاهزة — دون عرض الرقم */
   const onBuyNow = () => {
-    if (outOfStock || buying) return
+    if (outOfStock) return
     if (!validate()) return
-    setBuying(true)
-    doAdd(true)
-    window.setTimeout(() => {
-      setBuying(false)
-      if (isAuthenticated) navigate('/checkout')
-      else navigate('/login', { state: { from: '/checkout' } })
-    }, 350)
+    const choices = optionsLabel(product, selected)
+    const message = [
+      `مرحبًا، أرغب في شراء هذا المنتج من ${settings.storeName}:`,
+      `• المنتج: ${product.name}`,
+      choices ? `• الخيارات: ${choices}` : '',
+      `• الكمية: ${quantity}`,
+      `• السعر: ${formatPrice(price * quantity, settings.currency)}`,
+      `• الرابط: ${window.location.href}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+    showToast('جارٍ فتح واتساب لإتمام الطلب...', { type: 'success' })
+    openWhatsApp(message, settings.contact.whatsapp)
   }
 
   const stockBadge = () => {
@@ -202,7 +207,6 @@ export default function ProductDetail() {
               variant="outline"
               className="flex-1"
               disabled={outOfStock}
-              loading={buying}
               onClick={onBuyNow}
             >
               {product.kind === 'service' ? 'احجز الآن' : product.kind === 'digital' ? 'اشترِ الآن' : 'اشترِ الآن'}

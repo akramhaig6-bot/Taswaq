@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, CreditCard, Landmark, Wallet, Banknote, Plus, ShieldCheck } from 'lucide-react'
+import { Check, MessageCircle, Plus } from 'lucide-react'
 import type { Address } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
 import { computeTotals, requiresShipping, unitPrice } from '@/lib/pricing'
+import { buildOrderMessage, openWhatsApp } from '@/lib/whatsapp'
 import { Screen } from '@/components/layout/Screen'
 import { PageHeader } from '@/components/layout/TopBar'
 import { AddressCard, AddressFormModal } from '@/components/customer/AddressModals'
 import { Button } from '@/components/ui/Button'
-import { Checkbox, Input } from '@/components/ui/form'
+import { Checkbox } from '@/components/ui/form'
 import { ConfirmDialog } from '@/components/ui/overlay'
 import { Badge } from '@/components/ui/display'
 import { useAppData } from '@/store/AppDataContext'
@@ -19,30 +20,8 @@ import { useToast } from '@/store/ToastContext'
 
 const STEPS = [
   { id: 1, label: 'العنوان' },
-  { id: 2, label: 'الدفع' },
-  { id: 3, label: 'المراجعة' },
+  { id: 2, label: 'المراجعة' },
 ]
-
-const PAYMENT_ICONS = {
-  cod: Banknote,
-  card: CreditCard,
-  wallet: Wallet,
-  bank: Landmark,
-} as const
-
-function formatCardNumber(value: string): string {
-  return value
-    .replace(/\D/g, '')
-    .slice(0, 16)
-    .replace(/(.{4})/g, '$1 ')
-    .trim()
-}
-
-function formatExpiry(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 4)
-  if (digits.length <= 2) return digits
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`
-}
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -63,19 +42,13 @@ export default function Checkout() {
     () => items.some((item) => products.items.find((candidate) => candidate.id === item.productId)?.kind === 'service'),
     [items, products.items],
   )
-  const enabledPayments = useMemo(
-    () => settings.paymentMethods.filter((method) => method.enabled && (needsShipping || method.kind !== 'cod')),
-    [settings.paymentMethods, needsShipping],
-  )
   const enabledShipping = useMemo(() => settings.shipping.methods.filter((method) => method.enabled), [settings.shipping.methods])
 
   const [step, setStep] = useState(1)
   const [addressId, setAddressId] = useState('')
   const [addressModal, setAddressModal] = useState(false)
   const [editingAddress, setEditingAddress] = useState<Address | null>(null)
-  const [paymentId, setPaymentId] = useState(enabledPayments[0]?.id ?? '')
   const [shippingId, setShippingId] = useState(enabledShipping[0]?.id ?? '')
-  const [card, setCard] = useState({ number: '', name: '', expiry: '', cvv: '', save: false })
   const [note, setNote] = useState('')
   const [agree, setAgree] = useState(false)
   const [placing, setPlacing] = useState(false)
@@ -107,26 +80,18 @@ export default function Checkout() {
   }, [user, needsShipping])
 
   useEffect(() => {
-    if (!enabledPayments.some((method) => method.id === paymentId)) setPaymentId(enabledPayments[0]?.id ?? '')
-  }, [enabledPayments, paymentId])
-
-  useEffect(() => {
     if (needsShipping && !enabledShipping.some((method) => method.id === shippingId)) setShippingId(enabledShipping[0]?.id ?? '')
   }, [enabledShipping, needsShipping, shippingId])
 
   const totals = useMemo(
-    () => computeTotals({ items, products: products.items, coupon, settings, shippingMethodId: shippingId, paymentMethodId: paymentId }),
-    [items, products.items, coupon, settings, shippingId, paymentId],
+    () => computeTotals({ items, products: products.items, coupon, settings, shippingMethodId: shippingId }),
+    [items, products.items, coupon, settings, shippingId],
   )
 
   const address = user?.addresses.find((item) => item.id === addressId)
-  const payment = enabledPayments.find((method) => method.id === paymentId)
   const shippingMethod = enabledShipping.find((method) => method.id === shippingId)
-  const cardComplete =
-    payment?.kind !== 'card' ||
-    (card.number.replace(/\s/g, '').length === 16 && card.name.trim().length >= 3 && /^\d{2}\/\d{2}$/.test(card.expiry) && card.cvv.length >= 3)
 
-  const dirty = step > 1 || card.number.length > 0 || note.length > 0
+  const dirty = step > 1 || note.length > 0
 
   const goBack = () => {
     if (step > 1) {
@@ -138,7 +103,7 @@ export default function Checkout() {
   }
 
   const placeOrder = async () => {
-    if (!agree || !payment || (needsShipping && !address)) return
+    if (!agree || (needsShipping && !address)) return
     setPlacing(true)
     setError('')
 
@@ -149,11 +114,9 @@ export default function Checkout() {
       customerPhone: address?.phone ?? user?.phone ?? '',
       items,
       address: needsShipping ? address : undefined,
-      paymentMethodId: payment.id,
       shippingMethodId: needsShipping ? shippingMethod?.id ?? shippingId : undefined,
       couponCode: coupon?.code,
       note: note || undefined,
-      cardNumber: card.number,
     })
 
     setPlacing(false)
@@ -168,6 +131,12 @@ export default function Checkout() {
     /* نُعلِم الحارس أن تفريغ السلة متعمّد قبل أن نفرّغها */
     setOrderPlaced(true)
     clearCart()
+    /* إرسال تفاصيل الطلب إلى واتساب المتجر لتأكيده — دون إظهار الرقم */
+    openWhatsApp(
+      buildOrderMessage(result.data, { storeName: settings.storeName, currency: settings.currency }),
+      settings.contact.whatsapp,
+    )
+    showToast('تم إنشاء طلبك، وسيتم تأكيده عبر واتساب.', { type: 'success' })
     navigate(`/order-success/${result.data.id}`, { replace: true })
   }
 
@@ -177,7 +146,7 @@ export default function Checkout() {
         <PageHeader
           title="إتمام الطلب"
           onBack={goBack}
-          actions={<Badge tone="brand"><ShieldCheck className="size-3" /> دفع آمن</Badge>}
+          actions={<Badge tone="brand"><MessageCircle className="size-3" /> واتساب</Badge>}
         >
           {/* مؤشر الخطوات */}
           <div className="flex items-center gap-1.5 px-4 pb-3">
@@ -210,6 +179,12 @@ export default function Checkout() {
       }
       footer={
         <div className="shrink-0 border-t border-gray-100 bg-white p-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+          {step === 2 && (
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-[11.5px] text-gray-500">المجموع الكلي</span>
+              <span className="text-[14px] font-extrabold text-gray-900">{formatPrice(totals.total, settings.currency)}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             {step > 1 && (
               <Button variant="outline" size="lg" onClick={goBack}>
@@ -223,17 +198,19 @@ export default function Checkout() {
                 disabled={needsShipping && (!addressId || enabledShipping.length === 0)}
                 onClick={() => setStep(2)}
               >
-                متابعة إلى الدفع
-              </Button>
-            )}
-            {step === 2 && (
-              <Button size="lg" fullWidth disabled={!paymentId || !cardComplete} onClick={() => setStep(3)}>
                 متابعة إلى المراجعة
               </Button>
             )}
-            {step === 3 && (
-              <Button size="lg" fullWidth loading={placing} disabled={!agree} onClick={placeOrder}>
-                تأكيد الطلب — {formatPrice(totals.total, settings.currency)}
+            {step === 2 && (
+              <Button
+                size="lg"
+                fullWidth
+                loading={placing}
+                disabled={!agree}
+                icon={<MessageCircle className="size-4" />}
+                onClick={placeOrder}
+              >
+                إرسال الطلب عبر واتساب
               </Button>
             )}
           </div>
@@ -244,9 +221,6 @@ export default function Checkout() {
         {error && (
           <div className="rounded-xl bg-danger/10 p-3">
             <p className="text-[12.5px] font-semibold text-danger">{error}</p>
-            <button type="button" onClick={() => setStep(2)} className="mt-1 text-[12px] font-bold text-brand underline">
-              العودة إلى خطوة الدفع
-            </button>
           </div>
         )}
 
@@ -293,35 +267,35 @@ export default function Checkout() {
 
                 <section>
                   <h2 className="mb-2 text-[14px] font-extrabold text-gray-900">طريقة الشحن أو الزيارة</h2>
-              <div className="space-y-2">
-                {enabledShipping.map((method) => (
-                  <button
-                    key={method.id}
-                    type="button"
-                    onClick={() => setShippingId(method.id)}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-2xl border p-3 text-start transition-colors',
-                      shippingId === method.id ? 'border-brand bg-brand-soft/50' : 'border-gray-200',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'flex size-5 items-center justify-center rounded-full border',
-                        shippingId === method.id ? 'border-brand' : 'border-gray-300',
-                      )}
-                    >
-                      {shippingId === method.id && <span className="size-2.5 rounded-full bg-brand" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-bold text-gray-800">{method.name}</span>
-                      {method.eta && <span className="block text-[11.5px] text-gray-500">مدة التوصيل: {method.eta}</span>}
-                    </span>
-                    <span className="text-[13px] font-bold text-gray-900">
-                      {method.fee === 0 ? 'مجاني' : formatPrice(method.fee, settings.currency)}
-                    </span>
-                  </button>
-                ))}
-                </div>
+                  <div className="space-y-2">
+                    {enabledShipping.map((method) => (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => setShippingId(method.id)}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-2xl border p-3 text-start transition-colors',
+                          shippingId === method.id ? 'border-brand bg-brand-soft/50' : 'border-gray-200',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'flex size-5 items-center justify-center rounded-full border',
+                            shippingId === method.id ? 'border-brand' : 'border-gray-300',
+                          )}
+                        >
+                          {shippingId === method.id && <span className="size-2.5 rounded-full bg-brand" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[13px] font-bold text-gray-800">{method.name}</span>
+                          {method.eta && <span className="block text-[11.5px] text-gray-500">مدة التوصيل: {method.eta}</span>}
+                        </span>
+                        <span className="text-[13px] font-bold text-gray-900">
+                          {method.fee === 0 ? 'مجاني' : formatPrice(method.fee, settings.currency)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </section>
               </>
             ) : (
@@ -335,116 +309,8 @@ export default function Checkout() {
           </>
         )}
 
-        {/* ------------------------- الخطوة 2: الدفع ------------------------- */}
+        {/* ------------------------ الخطوة 2: المراجعة ------------------------ */}
         {step === 2 && (
-          <>
-            <section>
-              <h2 className="mb-2 text-[14px] font-extrabold text-gray-900">طريقة الدفع</h2>
-              {enabledPayments.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-gray-300 p-4 text-center text-[12.5px] text-gray-500">
-                  لا توجد طرق دفع متاحة حاليًا. يرجى المحاولة لاحقًا.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {enabledPayments.map((method) => {
-                    const Icon = PAYMENT_ICONS[method.kind]
-                    const active = paymentId === method.id
-                    return (
-                      <div key={method.id}>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentId(method.id)}
-                          className={cn(
-                            'flex w-full items-center gap-3 rounded-2xl border p-3 text-start transition-colors',
-                            active ? 'border-brand bg-brand-soft/50' : 'border-gray-200',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'flex size-5 items-center justify-center rounded-full border',
-                              active ? 'border-brand' : 'border-gray-300',
-                            )}
-                          >
-                            {active && <span className="size-2.5 rounded-full bg-brand" />}
-                          </span>
-                          <span className={cn('flex size-9 items-center justify-center rounded-xl', active ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500')}>
-                            <Icon className="size-4" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[13px] font-bold text-gray-800">{method.name}</span>
-                            {method.description && <span className="block text-[11.5px] text-gray-500">{method.description}</span>}
-                            {method.kind === 'cod' && (method.extraFee ?? settings.codFee) > 0 && (
-                              <span className="mt-0.5 block text-[11.5px] font-semibold text-warning">
-                                + {formatPrice(method.extraFee ?? settings.codFee, settings.currency)} رسوم إضافية
-                              </span>
-                            )}
-                          </span>
-                        </button>
-
-                        {active && method.kind === 'card' && (
-                          <div className="mt-2 space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                            <Input
-                              label="رقم البطاقة"
-                              inputMode="numeric"
-                              placeholder="0000 0000 0000 0000"
-                              value={card.number}
-                              onChange={(event) => setCard({ ...card, number: formatCardNumber(event.target.value) })}
-                            />
-                            <Input
-                              label="اسم حامل البطاقة"
-                              placeholder="الاسم كما يظهر على البطاقة"
-                              value={card.name}
-                              onChange={(event) => setCard({ ...card, name: event.target.value })}
-                            />
-                            <div className="grid grid-cols-2 gap-3">
-                              <Input
-                                label="تاريخ الانتهاء"
-                                placeholder="MM/YY"
-                                inputMode="numeric"
-                                value={card.expiry}
-                                onChange={(event) => setCard({ ...card, expiry: formatExpiry(event.target.value) })}
-                              />
-                              <Input
-                                label="CVV"
-                                placeholder="123"
-                                inputMode="numeric"
-                                maxLength={4}
-                                value={card.cvv}
-                                onChange={(event) => setCard({ ...card, cvv: event.target.value.replace(/\D/g, '') })}
-                                hint="3 أرقام خلف البطاقة"
-                              />
-                            </div>
-                            <Checkbox
-                              checked={card.save}
-                              onChange={(checked) => setCard({ ...card, save: checked })}
-                              label="حفظ البطاقة للمرات القادمة"
-                            />
-                          </div>
-                        )}
-
-                        {active && method.kind === 'bank' && (
-                          <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                            <p className="text-[12.5px] font-bold text-gray-800">تفاصيل الحساب البنكي</p>
-                            <p className="mt-1 text-[12px] leading-6 text-gray-600">{method.bankDetails}</p>
-                            {method.instructions && <p className="mt-1 text-[11.5px] text-gray-500">{method.instructions}</p>}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-
-            <p className="flex items-center gap-1.5 text-[11.5px] text-gray-500">
-              <ShieldCheck className="size-3.5 text-success" />
-              جميع المدفوعات مشفّرة وآمنة.
-            </p>
-          </>
-        )}
-
-        {/* ------------------------ الخطوة 3: المراجعة ------------------------ */}
-        {step === 3 && (
           <>
             {needsShipping ? (
               <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
@@ -464,18 +330,18 @@ export default function Checkout() {
               </section>
             )}
 
-            <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[13px] font-bold text-gray-800">طريقة الدفع</h3>
-                <button type="button" onClick={() => setStep(2)} className="text-[12px] font-bold text-brand">
-                  تعديل
-                </button>
+            <section className="rounded-2xl border border-success/20 bg-success/5 p-3.5">
+              <div className="flex items-start gap-2.5">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white">
+                  <MessageCircle className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[13px] font-bold text-gray-800">تأكيد الطلب عبر واتساب</h3>
+                  <p className="mt-1 text-[11.5px] leading-6 text-gray-600">
+                    بعد التأكيد سيُفتح واتساب المتجر برسالة جاهزة تحتوي تفاصيل طلبك. خدمة العملاء متاحة 24 ساعة.
+                  </p>
+                </div>
               </div>
-              <p className="mt-1 text-[12.5px] text-gray-600">
-                {payment?.name}
-                {payment?.kind === 'card' && card.number && ` — **** ${card.number.slice(-4)}`}
-              </p>
-              {needsShipping && <p className="mt-1 text-[12px] text-gray-500">الشحن أو الزيارة: {shippingMethod?.name}</p>}
             </section>
 
             <section className="rounded-2xl border border-gray-100 bg-white p-3.5">
@@ -518,12 +384,6 @@ export default function Checkout() {
                     <span className="font-semibold">
                       {totals.shipping === 0 ? 'مجاني' : formatPrice(totals.shipping, settings.currency)}
                     </span>
-                  </li>
-                )}
-                {totals.codFee > 0 && (
-                  <li className="flex justify-between">
-                    <span>رسوم الدفع عند الاستلام</span>
-                    <span className="font-semibold">{formatPrice(totals.codFee, settings.currency)}</span>
                   </li>
                 )}
                 {settings.tax.enabled && (

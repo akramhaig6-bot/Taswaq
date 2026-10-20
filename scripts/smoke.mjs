@@ -113,12 +113,12 @@ const routes = [
   '/account',
   '/account/edit',
   '/account/addresses',
-  '/account/payment-methods',
   '/account/notifications',
   '/offers',
   '/login',
   '/forgot-password',
   '/pages/about',
+  '/pages/contact',
   '/pages/does-not-exist',
   '/definitely-not-a-route',
   '/admin',
@@ -202,6 +202,7 @@ function setupDom(path, seed = {}) {
   }
   globalThis.scrollTo = () => {}
   window.scrollTo = () => {}
+  window.open = () => ({ closed: false, focus() {}, close() {} })
   window.Element.prototype.scrollTo = function scrollTo() {}
   window.Element.prototype.scrollIntoView = function scrollIntoView() {}
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
